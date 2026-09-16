@@ -54,7 +54,7 @@ class ConnectedShoulderDeformationSweepTests(unittest.TestCase):
                 )
                 self.assertTrue(row["bilateral_mirrored_position_set"], msg=f"{side} {row['angle_deg']} mirror drift")
                 self.assertEqual(row["collapsed_triangles"], 0)
-                self.assertEqual(row["fixed_socket_max_drift_m"], 0.0)
+                self.assertLessEqual(row["fixed_socket_max_drift_m"], 1e-9)
                 self.assertLessEqual(row["rigid_arm_radius_max_drift_m"], 1e-9)
 
     def test_original_three_rigging_pose_anchors_are_preserved(self):

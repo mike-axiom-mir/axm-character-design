@@ -1,15 +1,18 @@
 """Rigging-owned dense deformation sweep for the exact connected Character shoulder rig.
 
-This successor consumes Geometry PR #5's sampled self-intersection PASS and the
-unchanged Rigging PR #4 plan. It does not author new weights, joints, source
-geometry, animation timing, controller limits, or runtime behavior. The only new
-capability is a deterministic one-degree structural sweep across the already
-bounded -40..+40 degree verification envelope.
+This successor consumes Geometry PR #5's retained sampled self-intersection
+finding and the unchanged Rigging PR #4 plan. Geometry's exact finding is a
+FAIL, not a prerequisite PASS: this layer binds that failure without weakening,
+relabeling, or repairing it. The only new capability is a deterministic
+one-degree structural sweep across the already bounded -40..+40 degree
+verification envelope.
+
+It does not author new weights, joints, source geometry, animation timing,
+controller limits, runtime behavior, or Geometry acceptance.
 """
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 
 from .connected_shoulder_deformation import (
@@ -34,17 +37,18 @@ from .connected_shoulder_deformation import (
     rig_plan,
 )
 from .connected_shoulder_self_intersection import (
-    STATUS as SELF_INTERSECTION_STATUS,
+    FAIL_STATUS as SELF_INTERSECTION_FAIL_STATUS,
     audit_connected_shoulder_self_intersection,
 )
 from .organic_form import canonical_digest
 from .shoulder_connected_topology import build_connected_shoulder_specimen
 from .shoulder_source_lineage import adopted_character_source
 
-SCHEMA = "axm.character-connected-shoulder-rigging-sweep-evidence/v0.1"
-STATUS = "PASS_CHARACTER_CONNECTED_SHOULDER_DENSE_DEFORMATION_SWEEP"
-FAIL_STATUS = "FAIL_CHARACTER_CONNECTED_SHOULDER_DENSE_DEFORMATION_SWEEP"
+SCHEMA = "axm.character-connected-shoulder-rigging-sweep-evidence/v0.2"
+STATUS = "PASS_CHARACTER_CONNECTED_SHOULDER_DENSE_STRUCTURAL_SWEEP_WITH_HELD_INTERSECTION_FAIL"
+FAIL_STATUS = "FAIL_CHARACTER_CONNECTED_SHOULDER_DENSE_STRUCTURAL_SWEEP"
 SELF_INTERSECTION_HEAD = "eae6d296867ecaa40e8f5c3f1fe37d8e3019541e"
+SELF_INTERSECTION_PAIR_COUNT = 374
 RIGGING_HEAD = "b0a03cbcb61e0f8deec37172d22ff1a7fff306c9"
 SWEEP_START_DEG = -40.0
 SWEEP_END_DEG = 40.0
@@ -61,6 +65,8 @@ def sweep_contract():
         "source_mesh_digest": SOURCE_MESH_DIGEST,
         "geometry_head": GEOMETRY_HEAD,
         "self_intersection_head": SELF_INTERSECTION_HEAD,
+        "self_intersection_expected_status": SELF_INTERSECTION_FAIL_STATUS,
+        "self_intersection_expected_pair_count": SELF_INTERSECTION_PAIR_COUNT,
         "rigging_head": RIGGING_HEAD,
         "rig_id": RIG_ID,
         "rig_plan_digest": canonical_digest(rig_plan()),
@@ -78,6 +84,7 @@ def sweep_contract():
         "truth_boundary": {
             "verification_envelope_not_anatomical_joint_limits": True,
             "finite_dense_sampling_not_mathematical_continuous_proof": True,
+            "sampled_geometry_self_intersection_fail_is_preserved": True,
             "interior_self_intersection_not_checked": True,
             "animation_acceptance": False,
             "runtime_acceptance": False,
@@ -112,6 +119,13 @@ def _write_obj(path, positions, faces):
     Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _sampled_intersection_pair_count(report):
+    return sum(
+        int(row["inspection"]["self_intersection_pair_count"])
+        for row in report["samples"]
+    )
+
+
 def audit_connected_shoulder_deformation_sweep(contract=None):
     contract = _validate_contract(contract or sweep_contract())
 
@@ -122,8 +136,11 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
         raise ValueError("exact Rigging plan digest drift")
 
     self_intersection = audit_connected_shoulder_self_intersection()
-    if self_intersection["status"] != SELF_INTERSECTION_STATUS:
-        raise ValueError("exact Geometry sampled self-intersection prerequisite is not green")
+    observed_intersection_pairs = _sampled_intersection_pair_count(self_intersection)
+    if self_intersection["status"] != SELF_INTERSECTION_FAIL_STATUS:
+        raise ValueError("Geometry sampled self-intersection finding status drift")
+    if observed_intersection_pairs != SELF_INTERSECTION_PAIR_COUNT:
+        raise ValueError("Geometry sampled self-intersection finding count drift")
     if self_intersection["producer_dependencies"]["rigging_head"] != RIGGING_HEAD:
         raise ValueError("Geometry self-intersection Rigging dependency drift")
 
@@ -132,7 +149,7 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
         raise ValueError("adopted Character source identity drift")
 
     results = {}
-    all_pass = True
+    all_structural_pass = True
     for side in ("L", "R"):
         specimen = build_connected_shoulder_specimen(side)
         observed_geometry_digest = canonical_digest({
@@ -173,11 +190,11 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             else:
                 candidate["matches_original_rigging_anchor"] = None
 
-            all_pass &= candidate["status"] == "PASS"
-            all_pass &= control["status"] == "PASS"
-            all_pass &= candidate["improves_anchored_proximal_control"]
+            all_structural_pass &= candidate["status"] == "PASS"
+            all_structural_pass &= control["status"] == "PASS"
+            all_structural_pass &= candidate["improves_anchored_proximal_control"]
             if candidate["matches_original_rigging_anchor"] is False:
-                all_pass = False
+                all_structural_pass = False
 
             candidate_rows.append(candidate)
             control_rows.append(control)
@@ -191,14 +208,14 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
         }
 
     bilateral_mirror_pass = True
-    for index, angle in enumerate(SWEEP_ANGLES_DEG):
+    for index, _angle in enumerate(SWEEP_ANGLES_DEG):
         left = results["L"]["candidate"][index]["positions"]
         right = results["R"]["candidate"][index]["positions"]
         mirrored = _mirror_position_set(left) == _position_set(right)
         results["L"]["candidate"][index]["bilateral_mirrored_position_set"] = mirrored
         results["R"]["candidate"][index]["bilateral_mirrored_position_set"] = mirrored
         bilateral_mirror_pass &= mirrored
-        all_pass &= mirrored
+        all_structural_pass &= mirrored
 
     anchor_pass = all(
         row["matches_original_rigging_anchor"] is True
@@ -206,7 +223,13 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
         for row in results[side]["candidate"]
         if row["angle_deg"] in POSE_ANGLES_DEG
     )
-    all_pass &= anchor_pass
+    all_structural_pass &= anchor_pass
+
+    nonzero_improvement_pass = all(
+        row["improves_anchored_proximal_control"]
+        for side in ("L", "R")
+        for row in results[side]["candidate"]
+    )
 
     representative = {
         side: [
@@ -228,12 +251,14 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
 
     return {
         "schema": SCHEMA,
-        "status": STATUS if all_pass else FAIL_STATUS,
+        "status": STATUS if all_structural_pass else FAIL_STATUS,
         "contract": contract,
         "dependencies": {
             "rigging_status": rigging["status"],
             "sampled_self_intersection_status": self_intersection["status"],
+            "sampled_self_intersection_pair_count": observed_intersection_pairs,
             "sampled_self_intersection_scope_angles_deg": list(POSE_ANGLES_DEG),
+            "sampled_self_intersection_acceptance": "HELD_FAIL__NOT_RELABELLED_BY_RIGGING",
         },
         "sample_scope": {
             "samples_per_side": len(SWEEP_ANGLES_DEG),
@@ -249,15 +274,12 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             "exact_source_identity": "PASS",
             "exact_connected_geometry_identity": "PASS",
             "exact_rig_plan_identity": "PASS",
-            "exact_sampled_self_intersection_prerequisite": "PASS",
-            "all_162_candidate_pose_samples_structurally_green": "PASS" if all_pass else "FAIL",
-            "all_nonzero_samples_improve_anchored_control": "PASS" if all(
-                row["improves_anchored_proximal_control"]
-                for side in ("L", "R")
-                for row in results[side]["candidate"]
-            ) else "FAIL",
+            "exact_sampled_self_intersection_finding": "BOUND_FAIL_374_PAIRS",
+            "all_162_candidate_pose_samples_structurally_green": "PASS" if all_structural_pass else "FAIL",
+            "all_nonzero_samples_improve_anchored_control": "PASS" if nonzero_improvement_pass else "FAIL",
             "original_minus40_zero_plus40_anchors_unchanged": "PASS" if anchor_pass else "FAIL",
             "bilateral_mirror_all_samples": "PASS" if bilateral_mirror_pass else "FAIL",
+            "sampled_self_intersection_acceptance": "FAIL_HELD",
             "continuous_interpolation": "NOT_PROVEN_BY_FINITE_SWEEP",
             "interior_self_intersection": "NOT_CHECKED",
             "visual_quality": "NOT_CLAIMED",
@@ -265,9 +287,10 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
         },
         "truth_boundary": [
             "The exact Character source, connected Geometry, Rigging plan, weights, joints, axes and original -40/0/+40 poses are unchanged.",
+            "Geometry PR #5 reports FAIL_CHARACTER_CONNECTED_SHOULDER_SAMPLED_NONADJACENT_SELF_INTERSECTION_GATE with 374 detected nonadjacent triangle-pair intersections across its six retained samples; this Rigging successor pins and preserves that failure.",
             "This is a deterministic one-degree structural sweep across the existing verification envelope, not a new joint limit or animation clip.",
-            "Finite one-degree sampling materially narrows the unobserved deformation interval but does not mathematically prove every real-valued intermediate pose.",
-            "Geometry PR #5 proves nonadjacent self-intersection only at -40/0/+40; no interior self-intersection freedom is inherited or claimed here.",
+            "Finite one-degree sampling materially narrows the unobserved structural-deformation interval but does not mathematically prove every real-valued intermediate pose.",
+            "No interior self-intersection freedom is checked or claimed, and the sampled Geometry FAIL remains a blocking defect for any stronger deformation-acceptance claim.",
             "No anatomy, volume preservation, skin sliding, visual acceptance, Animation timing/interpolation, runtime/controller, gameplay, CANON, production readiness or Rigging mastery is claimed.",
         ],
     }

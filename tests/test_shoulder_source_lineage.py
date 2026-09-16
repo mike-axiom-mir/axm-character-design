@@ -52,7 +52,7 @@ class ShoulderSourceLineageTests(unittest.TestCase):
             [0.40, 0.65, 0.90, 1.0, 1.0, 0.90, 0.65, 0.40],
         )
         self.assertEqual(transition["target_axis_scale"], [0.55, 0.55, 0.85])
-        self.assertTrue(transition["open_inferior_sector"])
+        self.assertTrue(all(region["open_inferior_sector"] for region in source["shoulder_transition_regions"]))
         self.assertEqual(
             transition["status"],
             "SOURCE_LINEAGE_ADOPTED_FORM_DIRECTION_NOT_CONNECTED_TOPOLOGY",

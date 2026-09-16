@@ -65,6 +65,11 @@ jobs:
         env:
           PYTHONPATH: src
         run: python tools/build_shoulder_pose_clearance_candidate.py --out evidence/character-neutral-a-001
+      - name: Build shoulder neutral mass-interface context
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_mass_interface_context.py --out evidence/character-neutral-a-001
       - name: Bind evidence to exact checked-out head
         if: matrix.python-version == '3.11'
         run: git rev-parse HEAD > evidence/character-neutral-a-001/exact-head.txt

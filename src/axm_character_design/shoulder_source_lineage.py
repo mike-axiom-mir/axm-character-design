@@ -17,8 +17,18 @@ from .shoulder_transition_feathered import (
 SCHEMA = "axm.character-shoulder-source-lineage/v0.1"
 SOURCE_ID = "character-neutral-a-shoulder-source-004"
 STATUS = "PASS_EXACT_E_FORM_MIGRATED_TO_SOURCE_LINEAGE"
-EXPECTED_REVIEW_SOURCE_DIGEST = "846b841724121ee104536ca0e7d4fd22a2005bfd04e25e90b75a9b399b756043"
+
+# Repository-owned E identities come from the exact retained Character workflow
+# (head 4fb82dc97cbdb487a1cde407b503f50565b40c05, run 35090245742).
+EXPECTED_REVIEW_SOURCE_DIGEST = "3fe07d029bf701c1455eef9c651285b2ec2a638628d9f57a4f2648f4acfd6e9b"
 EXPECTED_REVIEW_MESH_DIGEST = "30a4612212f2e8252b6f813912ce76c655763e6d3abb4650c04ad1af72baea7f"
+
+# Independent Visual QA reconstructed the same proof mesh but serialized its
+# review source differently. Keep that separate instead of silently treating a
+# reconstruction digest as the repository's canonical source identity.
+QA_RECONSTRUCTION_SOURCE_DIGEST = "846b841724121ee104536ca0e7d4fd22a2005bfd04e25e90b75a9b399b756043"
+QA_RECONSTRUCTION_MESH_DIGEST = EXPECTED_REVIEW_MESH_DIGEST
+
 ART_DIRECTION_PACKET = {
     "repository": "mike-axiom-mir/axm-create-me",
     "path": "studio/direction/CHARACTER_FEATHERED_SHOULDER_ADOPTION_DIRECTION_003.md",
@@ -33,9 +43,9 @@ def _review_candidate():
     review = feathered_shoulder_candidate(baseline)
     review_mesh = build_feathered_shoulder_mesh(review)
     if canonical_digest(review) != EXPECTED_REVIEW_SOURCE_DIGEST:
-        raise ValueError("accepted E review source identity drift")
+        raise ValueError("accepted E repository review source identity drift")
     if canonical_digest(review_mesh) != EXPECTED_REVIEW_MESH_DIGEST:
-        raise ValueError("accepted E review mesh identity drift")
+        raise ValueError("accepted E repository review mesh identity drift")
     return review, review_mesh
 
 
@@ -51,8 +61,11 @@ def adopted_character_source():
         "schema": SCHEMA,
         "source_id": SOURCE_ID,
         "accepted_review_variant_id": review["shoulder_transition_repair"]["variant_id"],
-        "accepted_review_source_digest": EXPECTED_REVIEW_SOURCE_DIGEST,
-        "accepted_review_mesh_digest": EXPECTED_REVIEW_MESH_DIGEST,
+        "repository_review_source_digest": EXPECTED_REVIEW_SOURCE_DIGEST,
+        "repository_review_mesh_digest": EXPECTED_REVIEW_MESH_DIGEST,
+        "visual_qa_reconstruction_source_digest": QA_RECONSTRUCTION_SOURCE_DIGEST,
+        "visual_qa_reconstruction_mesh_digest": QA_RECONSTRUCTION_MESH_DIGEST,
+        "reconstruction_identity_note": "QA source serialization is retained as independent evidence; repository exact-head source digest remains source authority while both paths agree on the proof mesh digest",
         "art_direction": ART_DIRECTION_PACKET,
         "visual_qa_decision": VISUAL_QA_DECISION,
         "migration_policy": "EXACT_FORM_SEMANTICS_NEW_SOURCE_IDENTITY_NO_GEOMETRY_DRIFT",
@@ -86,13 +99,18 @@ def audit_source_lineage_adoption(source=None):
     if canonical_digest(normalized) != EXPECTED_REVIEW_SOURCE_DIGEST:
         raise ValueError("source migration changed accepted E form semantics")
 
-    if source["source_lineage_adoption"]["accepted_review_source_digest"] != EXPECTED_REVIEW_SOURCE_DIGEST:
-        raise ValueError("source adoption review source provenance drift")
-    if source["source_lineage_adoption"]["accepted_review_mesh_digest"] != EXPECTED_REVIEW_MESH_DIGEST:
-        raise ValueError("source adoption review mesh provenance drift")
-    if source["source_lineage_adoption"]["art_direction"] != ART_DIRECTION_PACKET:
+    adoption = source["source_lineage_adoption"]
+    if adoption["repository_review_source_digest"] != EXPECTED_REVIEW_SOURCE_DIGEST:
+        raise ValueError("source adoption repository review source provenance drift")
+    if adoption["repository_review_mesh_digest"] != EXPECTED_REVIEW_MESH_DIGEST:
+        raise ValueError("source adoption repository review mesh provenance drift")
+    if adoption["visual_qa_reconstruction_source_digest"] != QA_RECONSTRUCTION_SOURCE_DIGEST:
+        raise ValueError("source adoption QA reconstruction source provenance drift")
+    if adoption["visual_qa_reconstruction_mesh_digest"] != QA_RECONSTRUCTION_MESH_DIGEST:
+        raise ValueError("source adoption QA reconstruction mesh provenance drift")
+    if adoption["art_direction"] != ART_DIRECTION_PACKET:
         raise ValueError("source adoption art-direction provenance drift")
-    if source["source_lineage_adoption"]["visual_qa_decision"] != VISUAL_QA_DECISION:
+    if adoption["visual_qa_decision"] != VISUAL_QA_DECISION:
         raise ValueError("source adoption visual-QA provenance drift")
 
     review_audit = audit_feathered_shoulder(review)
@@ -128,8 +146,10 @@ def audit_source_lineage_adoption(source=None):
         "status": STATUS,
         "source_id": SOURCE_ID,
         "accepted_review_variant_id": review["shoulder_transition_repair"]["variant_id"],
-        "accepted_review_source_digest": EXPECTED_REVIEW_SOURCE_DIGEST,
-        "accepted_review_mesh_digest": EXPECTED_REVIEW_MESH_DIGEST,
+        "repository_review_source_digest": EXPECTED_REVIEW_SOURCE_DIGEST,
+        "repository_review_mesh_digest": EXPECTED_REVIEW_MESH_DIGEST,
+        "visual_qa_reconstruction_source_digest": QA_RECONSTRUCTION_SOURCE_DIGEST,
+        "visual_qa_reconstruction_mesh_digest": QA_RECONSTRUCTION_MESH_DIGEST,
         "adopted_source_digest": source_digest,
         "adopted_mesh_digest": adopted_mesh_digest,
         "form_metrics": adopted_checks,
@@ -141,8 +161,10 @@ def audit_source_lineage_adoption(source=None):
             "upper_arm_root_radius_reference_m": transition["upper_arm_root_radius_reference_m"],
         },
         "gates": {
-            "accepted-review-source-identity-pinned": "PASS",
-            "accepted-review-mesh-identity-pinned": "PASS",
+            "repository-review-source-identity-pinned": "PASS",
+            "repository-review-mesh-identity-pinned": "PASS",
+            "QA-reconstruction-provenance-kept-distinct": "PASS",
+            "repository-and-QA-review-mesh-agree": "PASS",
             "art-direction-provenance-pinned": "PASS",
             "visual-qa-decision-pinned": "PASS",
             "accepted-E-structural-audit-replayed": "PASS",
@@ -155,6 +177,7 @@ def audit_source_lineage_adoption(source=None):
         },
         "truth_boundary": [
             "this migrates the already accepted E shoulder form direction into a distinct Character source-lineage identity without changing the accepted proof geometry",
+            "repository exact-head source identity and independent QA reconstruction source identity are deliberately kept distinct; they agree on the accepted E proof mesh identity",
             "the retained 0.085 m anchor-radius reference, 0.075 m upper-arm-root reference, eight-sample open saddle, feather weights and target-axis scale are preserved exactly",
             "the migrated proof mesh remains disconnected low-resolution evidence and is not connected production topology",
             "no anatomy/biology, rigging, weighting, deformation, materials, target-engine, Armor/Unit fit, runtime, gameplay, CANON, production readiness, or Organic Form mastery claim",

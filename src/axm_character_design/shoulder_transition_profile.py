@@ -363,7 +363,7 @@ def _highlight_face_indices(mesh):
 def _filled_comparison_svg(meshes, view):
     projected = {
         label: [_project_vertex(vertex, view) for vertex in mesh["vertices"]]
-        for label, mesh in meshes
+        for label, mesh in meshes.items()
     }
     all_points = [point for points in projected.values() for point in points]
     min_x = min(point[0] for point in all_points)

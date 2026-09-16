@@ -10,9 +10,9 @@ from .organic_form import (
 SCHEMA = "axm.character-flex-transition-audit/v0.1"
 STATUS = "PASS_EXPLICIT_NEUTRAL_FLEX_CONTEXT"
 
-# These are the declared flex zones that already have two source-owned segment
-# endpoints meeting at the same landmark. The audit records any radius step; it
-# does not average or silently repair source values.
+# These are declared flex zones that already have two source-owned segment
+# endpoints meeting at the flex zone's landmark. The audit records any radius
+# step; it does not average or silently repair source values.
 INTERNAL_TRANSITIONS = (
     ("elbow_L", "upper_arm_L", "lower_arm_L"),
     ("wrist_L", "lower_arm_L", "hand_L"),
@@ -54,13 +54,17 @@ def audit_flex_transitions(study=None):
     landmarks = study["landmarks"]
     segments = {segment["id"]: segment for segment in study["segments"]}
     masses = {mass["id"]: mass for mass in study["masses"]}
+    flex_landmarks = {zone["id"]: zone["landmark"] for zone in study["flex_zones"]}
     tolerance = study["design_constraints"]["bilateral_tolerance_m"]
 
     internal = []
     for flex_id, proximal_id, distal_id in INTERNAL_TRANSITIONS:
+        landmark = flex_landmarks.get(flex_id)
+        if landmark is None:
+            raise ValueError(f"unknown declared flex zone: {flex_id}")
         proximal = segments[proximal_id]
         distal = segments[distal_id]
-        if proximal["b"] != flex_id or distal["a"] != flex_id:
+        if proximal["b"] != landmark or distal["a"] != landmark:
             raise ValueError(f"transition landmark binding drift: {flex_id}")
         proximal_radius = float(proximal["radius_b"])
         distal_radius = float(distal["radius_a"])
@@ -68,7 +72,7 @@ def audit_flex_transitions(study=None):
         internal.append(
             {
                 "flex_zone": flex_id,
-                "landmark": flex_id,
+                "landmark": landmark,
                 "proximal_segment": proximal_id,
                 "distal_segment": distal_id,
                 "proximal_radius_m": proximal_radius,
@@ -95,11 +99,14 @@ def audit_flex_transitions(study=None):
 
     mass_interfaces = []
     for flex_id, segment_id, mass_id in MASS_INTERFACES:
+        landmark = flex_landmarks.get(flex_id)
+        if landmark is None:
+            raise ValueError(f"unknown declared flex zone: {flex_id}")
         segment = segments[segment_id]
         mass = masses[mass_id]
-        if segment["a"] != flex_id:
+        if segment["a"] != landmark:
             raise ValueError(f"mass-interface landmark binding drift: {flex_id}")
-        root = landmarks[segment["a"]]
+        root = landmarks[landmark]
         tip = landmarks[segment["b"]]
         root_ring, _ = _segment_mesh(
             root,
@@ -114,7 +121,7 @@ def audit_flex_transitions(study=None):
         mass_interfaces.append(
             {
                 "flex_zone": flex_id,
-                "landmark": flex_id,
+                "landmark": landmark,
                 "segment": segment_id,
                 "mass": mass_id,
                 "segment_root_radius_m": float(segment["radius_a"]),
@@ -130,7 +137,7 @@ def audit_flex_transitions(study=None):
     audited_ids = {entry["flex_zone"] for entry in internal} | {
         entry["flex_zone"] for entry in mass_interfaces
     }
-    declared_ids = {zone["id"] for zone in study["flex_zones"]}
+    declared_ids = set(flex_landmarks)
     if audited_ids != declared_ids:
         missing = sorted(declared_ids - audited_ids)
         extra = sorted(audited_ids - declared_ids)
@@ -142,6 +149,9 @@ def audit_flex_transitions(study=None):
     radius_step_count = len(internal) - exact_match_count
     max_abs_delta = max(entry["abs_radius_delta_m"] for entry in internal)
     max_ratio = max(entry["abs_delta_ratio_to_proximal"] for entry in internal)
+    least_inside = min(
+        item["root_ring_samples_inside_or_on_mass"] for item in mass_interfaces
+    )
 
     return {
         "schema": SCHEMA,
@@ -165,11 +175,7 @@ def audit_flex_transitions(study=None):
             "least_embedded_mass_interfaces_by_root_ring_samples": [
                 entry["flex_zone"]
                 for entry in mass_interfaces
-                if entry["root_ring_samples_inside_or_on_mass"]
-                == min(
-                    item["root_ring_samples_inside_or_on_mass"]
-                    for item in mass_interfaces
-                )
+                if entry["root_ring_samples_inside_or_on_mass"] == least_inside
             ],
         },
         "gates": {

@@ -55,6 +55,11 @@ jobs:
         env:
           PYTHONPATH: src
         run: python tools/build_shoulder_transition_feathered.py --out evidence/character-neutral-a-001
+      - name: Build accepted shoulder source-lineage migration evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_source_lineage.py --out evidence/character-neutral-a-001
       - name: Bind evidence to exact checked-out head
         if: matrix.python-version == '3.11'
         run: git rev-parse HEAD > evidence/character-neutral-a-001/exact-head.txt

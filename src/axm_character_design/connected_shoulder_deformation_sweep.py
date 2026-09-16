@@ -1,14 +1,16 @@
-"""Rigging-owned dense deformation sweep for the exact connected Character shoulder rig.
+"""Rigging-owned angle-conditioned corrective release for the connected shoulder.
 
-This successor consumes Geometry PR #5's retained sampled self-intersection
-finding and the unchanged Rigging PR #4 plan. Geometry's exact finding is a
-FAIL, not a prerequisite PASS: this layer binds that failure without weakening,
-relabeling, or repairing it. The only new capability is a deterministic
-one-degree structural sweep across the already bounded -40..+40 degree
-verification envelope.
+The previous Character Rigging proof uses one fixed 10% proximal release weight
+at -40/0/+40 degrees. A dense one-degree probe showed that silently extending
+that fixed weight through the full envelope is not safe: at least the -3 degree
+sample is measurably worse than the anchored 0% control. This successor keeps
+the exact source, connected Geometry and donor rig identity explicit, then adds
+a new bounded pose-conditioned corrective profile rather than rewriting the
+existing rig.
 
-It does not author new weights, joints, source geometry, animation timing,
-controller limits, runtime behavior, or Geometry acceptance.
+Geometry PR #5's sampled self-intersection result is also preserved exactly as
+a FAIL with 374 detected nonadjacent triangle-pair intersections. This module
+cannot promote that Geometry finding, Animation acceptance or runtime support.
 """
 from __future__ import annotations
 
@@ -22,7 +24,7 @@ from .connected_shoulder_deformation import (
     GEOMETRY_HEAD,
     METRIC_TOLERANCE,
     POSE_ANGLES_DEG,
-    RIG_ID,
+    RIG_ID as DONOR_RIG_ID,
     SOURCE_DIGEST,
     SOURCE_ID,
     SOURCE_MESH_DIGEST,
@@ -45,12 +47,16 @@ from .organic_form import canonical_digest
 from .shoulder_connected_topology import build_connected_shoulder_specimen
 from .shoulder_source_lineage import adopted_character_source
 
-SCHEMA = "axm.character-connected-shoulder-rigging-sweep-evidence/v0.3"
-STATUS = "PASS_CHARACTER_CONNECTED_SHOULDER_DENSE_STRUCTURAL_SWEEP_WITH_HELD_INTERSECTION_FAIL"
-FAIL_STATUS = "FAIL_CHARACTER_CONNECTED_SHOULDER_DENSE_STRUCTURAL_SWEEP"
+SCHEMA = "axm.character-connected-shoulder-angle-conditioned-release-evidence/v0.1"
+STATUS = "PASS_CHARACTER_CONNECTED_SHOULDER_ANGLE_CONDITIONED_RELEASE_STRUCTURAL_SWEEP_WITH_HELD_INTERSECTION_FAIL"
+FAIL_STATUS = "FAIL_CHARACTER_CONNECTED_SHOULDER_ANGLE_CONDITIONED_RELEASE_STRUCTURAL_SWEEP"
 SELF_INTERSECTION_HEAD = "eae6d296867ecaa40e8f5c3f1fe37d8e3019541e"
 SELF_INTERSECTION_PAIR_COUNT = 374
-RIGGING_HEAD = "b0a03cbcb61e0f8deec37172d22ff1a7fff306c9"
+DONOR_RIGGING_HEAD = "b0a03cbcb61e0f8deec37172d22ff1a7fff306c9"
+SUCCESSOR_RIG_ID = "character-connected-shoulder-socket-rig-002-angle-conditioned-release"
+RELEASE_PROFILE_ID = "angle-conditioned-proximal-release-power12-v1"
+RELEASE_POWER = 12.0
+MAX_RELEASE_WEIGHT = CANDIDATE_PROXIMAL_WEIGHT
 SWEEP_START_DEG = -40.0
 SWEEP_END_DEG = 40.0
 SWEEP_STEP_DEG = 1.0
@@ -58,7 +64,37 @@ SWEEP_ANGLES_DEG = tuple(float(value) for value in range(-40, 41))
 REPRESENTATIVE_ANGLES_DEG = (-40.0, -20.0, 0.0, 20.0, 40.0)
 
 
+def release_weight(angle_deg: float) -> float:
+    magnitude = min(abs(float(angle_deg)), abs(SWEEP_END_DEG))
+    if magnitude == 0.0:
+        return 0.0
+    normalized = magnitude / abs(SWEEP_END_DEG)
+    return MAX_RELEASE_WEIGHT * (normalized ** RELEASE_POWER)
+
+
+def successor_rig_profile():
+    return {
+        "rig_id": SUCCESSOR_RIG_ID,
+        "donor_rig_id": DONOR_RIG_ID,
+        "donor_rigging_head": DONOR_RIGGING_HEAD,
+        "donor_rig_plan_digest": canonical_digest(rig_plan()),
+        "release_profile_id": RELEASE_PROFILE_ID,
+        "release_power": RELEASE_POWER,
+        "max_release_weight": MAX_RELEASE_WEIGHT,
+        "control_proximal_weight": CONTROL_PROXIMAL_WEIGHT,
+        "driver": "absolute_local_shoulder_angle_deg",
+        "verification_envelope_deg": [SWEEP_START_DEG, SWEEP_END_DEG],
+        "formula": "max_release_weight * (abs(angle_deg) / 40.0) ** release_power",
+        "endpoint_contract": {
+            "zero_deg_weight": 0.0,
+            "minus_40_deg_weight": MAX_RELEASE_WEIGHT,
+            "plus_40_deg_weight": MAX_RELEASE_WEIGHT,
+        },
+    }
+
+
 def sweep_contract():
+    profile = successor_rig_profile()
     return {
         "schema": SCHEMA,
         "source_id": SOURCE_ID,
@@ -68,12 +104,12 @@ def sweep_contract():
         "self_intersection_head": SELF_INTERSECTION_HEAD,
         "self_intersection_expected_status": SELF_INTERSECTION_FAIL_STATUS,
         "self_intersection_expected_pair_count": SELF_INTERSECTION_PAIR_COUNT,
-        "rigging_head": RIGGING_HEAD,
-        "rig_id": RIG_ID,
-        "rig_plan_digest": canonical_digest(rig_plan()),
+        "donor_rigging_head": DONOR_RIGGING_HEAD,
+        "donor_rig_id": DONOR_RIG_ID,
+        "donor_rig_plan_digest": canonical_digest(rig_plan()),
+        "successor_rig_id": SUCCESSOR_RIG_ID,
+        "successor_rig_profile_digest": canonical_digest(profile),
         "candidate_geometry_digests": dict(CANDIDATE_DIGESTS),
-        "candidate_proximal_weight": CANDIDATE_PROXIMAL_WEIGHT,
-        "control_proximal_weight": CONTROL_PROXIMAL_WEIGHT,
         "sweep": {
             "start_deg": SWEEP_START_DEG,
             "end_deg": SWEEP_END_DEG,
@@ -97,7 +133,7 @@ def sweep_contract():
 def _validate_contract(contract):
     expected = sweep_contract()
     if contract != expected:
-        raise ValueError("connected shoulder deformation sweep contract identity drift")
+        raise ValueError("connected shoulder angle-conditioned release contract identity drift")
     return expected
 
 
@@ -110,11 +146,13 @@ def _metric_extrema(rows):
         "maximum_fixed_socket_drift_m": max(row["fixed_socket_max_drift_m"] for row in rows),
         "maximum_rigid_arm_radius_drift_m": max(row["rigid_arm_radius_max_drift_m"] for row in rows),
         "collapsed_triangle_total": sum(row["collapsed_triangles"] for row in rows),
+        "minimum_release_weight": min(row["proximal_release_weight"] for row in rows),
+        "maximum_release_weight": max(row["proximal_release_weight"] for row in rows),
     }
 
 
 def _write_obj(path, positions, faces):
-    lines = ["# AXM retained Character connected shoulder deformation sweep pose"]
+    lines = ["# AXM retained Character connected shoulder angle-conditioned release pose"]
     lines.extend("v {:.12f} {:.12f} {:.12f}".format(*point) for point in positions)
     lines.extend("f {} {} {}".format(face[0] + 1, face[1] + 1, face[2] + 1) for face in faces)
     Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -143,11 +181,13 @@ def _rounded_positions(positions):
 def audit_connected_shoulder_deformation_sweep(contract=None):
     contract = _validate_contract(contract or sweep_contract())
 
-    rigging = audit_connected_shoulder_deformation()
-    if rigging["status"] != RIGGING_STATUS:
-        raise ValueError("exact Rigging prerequisite is not green")
-    if canonical_digest(rig_plan()) != contract["rig_plan_digest"]:
-        raise ValueError("exact Rigging plan digest drift")
+    donor = audit_connected_shoulder_deformation()
+    if donor["status"] != RIGGING_STATUS:
+        raise ValueError("exact donor Rigging proof is not green")
+    if canonical_digest(rig_plan()) != contract["donor_rig_plan_digest"]:
+        raise ValueError("exact donor Rigging plan digest drift")
+    if canonical_digest(successor_rig_profile()) != contract["successor_rig_profile_digest"]:
+        raise ValueError("successor Rigging profile digest drift")
 
     self_intersection = audit_connected_shoulder_self_intersection()
     observed_intersection_pairs = _sampled_intersection_pair_count(self_intersection)
@@ -155,8 +195,8 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
         raise ValueError("Geometry sampled self-intersection finding status drift")
     if observed_intersection_pairs != SELF_INTERSECTION_PAIR_COUNT:
         raise ValueError("Geometry sampled self-intersection finding count drift")
-    if self_intersection["producer_dependencies"]["rigging_head"] != RIGGING_HEAD:
-        raise ValueError("Geometry self-intersection Rigging dependency drift")
+    if self_intersection["producer_dependencies"]["rigging_head"] != DONOR_RIGGING_HEAD:
+        raise ValueError("Geometry self-intersection donor Rigging dependency drift")
 
     source = adopted_character_source()
     if source.get("study_id") != SOURCE_ID or canonical_digest(source) != SOURCE_DIGEST:
@@ -174,26 +214,29 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             raise ValueError(f"connected shoulder {side} Geometry identity drift")
 
         layout = _specimen_layout(source, specimen)
-        candidate_weights = _weights(layout, CANDIDATE_PROXIMAL_WEIGHT)
         control_weights = _weights(layout, CONTROL_PROXIMAL_WEIGHT)
         joint = rig_plan()["joints"][side]
         origin = tuple(source["landmarks"][joint["landmark"]])
         axis = tuple(joint["axis"])
+        original_by_angle = {
+            float(row["angle_deg"]): row
+            for row in donor["results"][side]["candidate"]
+        }
 
         candidate_rows = []
         control_rows = []
-        original_by_angle = {
-            float(row["angle_deg"]): row
-            for row in rigging["results"][side]["candidate"]
-        }
         for angle in SWEEP_ANGLES_DEG:
+            proximal_release = release_weight(angle)
+            candidate_weights = _weights(layout, proximal_release)
             candidate = _pose(specimen, origin, axis, angle, candidate_weights)
             control = _pose(specimen, origin, axis, angle, control_weights)
+            candidate["proximal_release_weight"] = proximal_release
+            control["proximal_release_weight"] = CONTROL_PROXIMAL_WEIGHT
             candidate["status"] = "PASS" if _pose_status(candidate) else "FAIL"
             control["status"] = "PASS" if _pose_status(control) else "FAIL"
             candidate["nonworse_than_anchored_proximal_control"] = _nonworse_control(candidate, control)
             candidate["strictly_improves_anchored_proximal_control"] = (
-                True if angle == 0.0 else _improves_control(candidate, control)
+                False if angle == 0.0 else _improves_control(candidate, control)
             )
             candidate["position_digest"] = canonical_digest(candidate["positions"])
             control["position_digest"] = canonical_digest(control["positions"])
@@ -240,27 +283,19 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
     )
     all_structural_pass &= anchor_pass
 
-    original_boundary_improvement_pass = all(
+    boundary_improvement_pass = all(
         row["strictly_improves_anchored_proximal_control"]
         for side in ("L", "R")
         for row in results[side]["candidate"]
         if row["angle_deg"] in (-40.0, 40.0)
     )
-    all_structural_pass &= original_boundary_improvement_pass
-
-    strict_improvement_angles = {
-        side: [
-            row["angle_deg"]
-            for row in results[side]["candidate"]
-            if row["angle_deg"] != 0.0 and row["strictly_improves_anchored_proximal_control"]
-        ]
-        for side in ("L", "R")
-    }
+    all_structural_pass &= boundary_improvement_pass
 
     representative = {
         side: [
             {
                 "angle_deg": row["angle_deg"],
+                "proximal_release_weight": row["proximal_release_weight"],
                 "position_digest": row["position_digest"],
                 "minimum_triangle_area_ratio": row["minimum_triangle_area_ratio"],
                 "maximum_triangle_area_ratio": row["maximum_triangle_area_ratio"],
@@ -281,8 +316,9 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
         "schema": SCHEMA,
         "status": STATUS if all_structural_pass else FAIL_STATUS,
         "contract": contract,
+        "successor_rig_profile": successor_rig_profile(),
         "dependencies": {
-            "rigging_status": rigging["status"],
+            "donor_rigging_status": donor["status"],
             "sampled_self_intersection_status": self_intersection["status"],
             "sampled_self_intersection_pair_count": observed_intersection_pairs,
             "sampled_self_intersection_scope_angles_deg": list(POSE_ANGLES_DEG),
@@ -297,16 +333,16 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             "interior_self_intersection_checked": False,
         },
         "results": results,
-        "strict_improvement_angles_deg": strict_improvement_angles,
         "representative": representative,
         "gates": {
             "exact_source_identity": "PASS",
             "exact_connected_geometry_identity": "PASS",
-            "exact_rig_plan_identity": "PASS",
+            "exact_donor_rig_identity": "PASS",
+            "explicit_successor_rig_profile_identity": "PASS",
             "exact_sampled_self_intersection_finding": "BOUND_FAIL_374_PAIRS",
-            "all_162_candidate_pose_samples_structurally_green_and_nonworse": "PASS" if all_structural_pass else "FAIL",
-            "original_nonzero_boundary_samples_still_strictly_improve_control": "PASS" if original_boundary_improvement_pass else "FAIL",
-            "original_minus40_zero_plus40_anchors_unchanged": "PASS" if anchor_pass else "FAIL",
+            "all_162_successor_pose_samples_structurally_green_and_nonworse": "PASS" if all_structural_pass else "FAIL",
+            "original_nonzero_boundary_samples_still_strictly_improve_control": "PASS" if boundary_improvement_pass else "FAIL",
+            "original_minus40_zero_plus40_pose_anchors_unchanged": "PASS" if anchor_pass else "FAIL",
             "bilateral_mirror_all_samples": "PASS" if bilateral_mirror_pass else "FAIL",
             "sampled_self_intersection_acceptance": "FAIL_HELD",
             "continuous_interpolation": "NOT_PROVEN_BY_FINITE_SWEEP",
@@ -315,13 +351,13 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             "animation_or_runtime": "NOT_CLAIMED",
         },
         "truth_boundary": [
-            "The exact Character source, connected Geometry, Rigging plan, weights, joints, axes and original -40/0/+40 poses are unchanged.",
+            "The exact Character source, connected Geometry and donor Rigging PR #4 remain unchanged; this evidence gives the corrective profile a new successor rig identity instead of silently mutating the donor rig.",
+            "The successor uses a smooth absolute-angle power-12 release: weight 0.0 at neutral and exactly the donor 0.10 release at both +/-40 degree boundaries.",
             "Geometry PR #5 reports FAIL_CHARACTER_CONNECTED_SHOULDER_SAMPLED_NONADJACENT_SELF_INTERSECTION_GATE with 374 detected nonadjacent triangle-pair intersections across its six retained samples; this Rigging successor pins and preserves that failure.",
-            "This is a deterministic one-degree structural sweep across the existing verification envelope, not a new joint limit or animation clip.",
-            "Interior samples are required to be structurally non-worse than the exact 0% anchored-proximal control; strict improvement is not invented where metric differences remain within the existing 1e-9 tolerance.",
-            "Finite one-degree sampling materially narrows the unobserved structural-deformation interval but does not mathematically prove every real-valued intermediate pose.",
-            "No interior self-intersection freedom is checked or claimed, and the sampled Geometry FAIL remains a blocking defect for any stronger deformation-acceptance claim.",
-            "No anatomy, volume preservation, skin sliding, visual acceptance, Animation timing/interpolation, runtime/controller, gameplay, CANON, production readiness or Rigging mastery is claimed.",
+            "The one-degree sweep checks structural distortion metrics and exact socket/radius invariants only. It does not establish collision freedom, continuous deformation quality or animation timing.",
+            "The -40..+40 degree range is a verification envelope, not an anatomical joint limit or runtime/controller policy.",
+            "Finite one-degree sampling materially narrows the unobserved structural interval but does not mathematically prove every real-valued intermediate pose.",
+            "No anatomy, volume preservation, skin sliding, visual acceptance, Animation acceptance, exported skeleton/skin, runtime/controller, gameplay, CANON, production readiness or Rigging mastery is claimed.",
         ],
     }
 
@@ -330,8 +366,11 @@ def build_connected_shoulder_deformation_sweep_evidence(out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     receipt = audit_connected_shoulder_deformation_sweep()
-    (out / "connected-shoulder-deformation-sweep-audit.json").write_text(
+    (out / "connected-shoulder-angle-conditioned-release-audit.json").write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (out / "successor-rig-profile.json").write_text(
+        json.dumps(successor_rig_profile(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
     source = adopted_character_source()
@@ -342,9 +381,8 @@ def build_connected_shoulder_deformation_sweep_evidence(out_dir):
         origin = tuple(source["landmarks"][joint["landmark"]])
         axis = tuple(joint["axis"])
         layout = _specimen_layout(source, specimen)
-        weights = _weights(layout, CANDIDATE_PROXIMAL_WEIGHT)
         for angle in REPRESENTATIVE_ANGLES_DEG:
-            posed = _pose(specimen, origin, axis, angle, weights)
+            posed = _pose(specimen, origin, axis, angle, _weights(layout, release_weight(angle)))
             label = f"m{abs(int(angle)):02d}" if angle < 0 else f"p{int(angle):02d}"
             if angle == 0:
                 label = "zero"

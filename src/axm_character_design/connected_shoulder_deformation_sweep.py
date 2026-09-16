@@ -20,6 +20,7 @@ from .connected_shoulder_deformation import (
     CANDIDATE_PROXIMAL_WEIGHT,
     CONTROL_PROXIMAL_WEIGHT,
     GEOMETRY_HEAD,
+    METRIC_TOLERANCE,
     POSE_ANGLES_DEG,
     RIG_ID,
     SOURCE_DIGEST,
@@ -44,7 +45,7 @@ from .organic_form import canonical_digest
 from .shoulder_connected_topology import build_connected_shoulder_specimen
 from .shoulder_source_lineage import adopted_character_source
 
-SCHEMA = "axm.character-connected-shoulder-rigging-sweep-evidence/v0.2"
+SCHEMA = "axm.character-connected-shoulder-rigging-sweep-evidence/v0.3"
 STATUS = "PASS_CHARACTER_CONNECTED_SHOULDER_DENSE_STRUCTURAL_SWEEP_WITH_HELD_INTERSECTION_FAIL"
 FAIL_STATUS = "FAIL_CHARACTER_CONNECTED_SHOULDER_DENSE_STRUCTURAL_SWEEP"
 SELF_INTERSECTION_HEAD = "eae6d296867ecaa40e8f5c3f1fe37d8e3019541e"
@@ -126,6 +127,19 @@ def _sampled_intersection_pair_count(report):
     )
 
 
+def _nonworse_control(candidate, control):
+    return (
+        candidate["minimum_triangle_area_ratio"] + METRIC_TOLERANCE >= control["minimum_triangle_area_ratio"]
+        and candidate["maximum_triangle_area_ratio"] <= control["maximum_triangle_area_ratio"] + METRIC_TOLERANCE
+        and candidate["minimum_edge_length_ratio"] + METRIC_TOLERANCE >= control["minimum_edge_length_ratio"]
+        and candidate["maximum_edge_length_ratio"] <= control["maximum_edge_length_ratio"] + METRIC_TOLERANCE
+    )
+
+
+def _rounded_positions(positions):
+    return [[round(float(value), 9) for value in point] for point in positions]
+
+
 def audit_connected_shoulder_deformation_sweep(contract=None):
     contract = _validate_contract(contract or sweep_contract())
 
@@ -177,7 +191,8 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             control = _pose(specimen, origin, axis, angle, control_weights)
             candidate["status"] = "PASS" if _pose_status(candidate) else "FAIL"
             control["status"] = "PASS" if _pose_status(control) else "FAIL"
-            candidate["improves_anchored_proximal_control"] = (
+            candidate["nonworse_than_anchored_proximal_control"] = _nonworse_control(candidate, control)
+            candidate["strictly_improves_anchored_proximal_control"] = (
                 True if angle == 0.0 else _improves_control(candidate, control)
             )
             candidate["position_digest"] = canonical_digest(candidate["positions"])
@@ -185,14 +200,14 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
 
             if angle in original_by_angle:
                 candidate["matches_original_rigging_anchor"] = (
-                    candidate["positions"] == original_by_angle[angle]["positions"]
+                    _rounded_positions(candidate["positions"]) == original_by_angle[angle]["positions"]
                 )
             else:
                 candidate["matches_original_rigging_anchor"] = None
 
             all_structural_pass &= candidate["status"] == "PASS"
             all_structural_pass &= control["status"] == "PASS"
-            all_structural_pass &= candidate["improves_anchored_proximal_control"]
+            all_structural_pass &= candidate["nonworse_than_anchored_proximal_control"]
             if candidate["matches_original_rigging_anchor"] is False:
                 all_structural_pass = False
 
@@ -225,11 +240,22 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
     )
     all_structural_pass &= anchor_pass
 
-    nonzero_improvement_pass = all(
-        row["improves_anchored_proximal_control"]
+    original_boundary_improvement_pass = all(
+        row["strictly_improves_anchored_proximal_control"]
         for side in ("L", "R")
         for row in results[side]["candidate"]
+        if row["angle_deg"] in (-40.0, 40.0)
     )
+    all_structural_pass &= original_boundary_improvement_pass
+
+    strict_improvement_angles = {
+        side: [
+            row["angle_deg"]
+            for row in results[side]["candidate"]
+            if row["angle_deg"] != 0.0 and row["strictly_improves_anchored_proximal_control"]
+        ]
+        for side in ("L", "R")
+    }
 
     representative = {
         side: [
@@ -242,6 +268,8 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
                 "maximum_edge_length_ratio": row["maximum_edge_length_ratio"],
                 "fixed_socket_max_drift_m": row["fixed_socket_max_drift_m"],
                 "rigid_arm_radius_max_drift_m": row["rigid_arm_radius_max_drift_m"],
+                "nonworse_than_anchored_proximal_control": row["nonworse_than_anchored_proximal_control"],
+                "strictly_improves_anchored_proximal_control": row["strictly_improves_anchored_proximal_control"],
             }
             for row in results[side]["candidate"]
             if row["angle_deg"] in REPRESENTATIVE_ANGLES_DEG
@@ -269,14 +297,15 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             "interior_self_intersection_checked": False,
         },
         "results": results,
+        "strict_improvement_angles_deg": strict_improvement_angles,
         "representative": representative,
         "gates": {
             "exact_source_identity": "PASS",
             "exact_connected_geometry_identity": "PASS",
             "exact_rig_plan_identity": "PASS",
             "exact_sampled_self_intersection_finding": "BOUND_FAIL_374_PAIRS",
-            "all_162_candidate_pose_samples_structurally_green": "PASS" if all_structural_pass else "FAIL",
-            "all_nonzero_samples_improve_anchored_control": "PASS" if nonzero_improvement_pass else "FAIL",
+            "all_162_candidate_pose_samples_structurally_green_and_nonworse": "PASS" if all_structural_pass else "FAIL",
+            "original_nonzero_boundary_samples_still_strictly_improve_control": "PASS" if original_boundary_improvement_pass else "FAIL",
             "original_minus40_zero_plus40_anchors_unchanged": "PASS" if anchor_pass else "FAIL",
             "bilateral_mirror_all_samples": "PASS" if bilateral_mirror_pass else "FAIL",
             "sampled_self_intersection_acceptance": "FAIL_HELD",
@@ -289,6 +318,7 @@ def audit_connected_shoulder_deformation_sweep(contract=None):
             "The exact Character source, connected Geometry, Rigging plan, weights, joints, axes and original -40/0/+40 poses are unchanged.",
             "Geometry PR #5 reports FAIL_CHARACTER_CONNECTED_SHOULDER_SAMPLED_NONADJACENT_SELF_INTERSECTION_GATE with 374 detected nonadjacent triangle-pair intersections across its six retained samples; this Rigging successor pins and preserves that failure.",
             "This is a deterministic one-degree structural sweep across the existing verification envelope, not a new joint limit or animation clip.",
+            "Interior samples are required to be structurally non-worse than the exact 0% anchored-proximal control; strict improvement is not invented where metric differences remain within the existing 1e-9 tolerance.",
             "Finite one-degree sampling materially narrows the unobserved structural-deformation interval but does not mathematically prove every real-valued intermediate pose.",
             "No interior self-intersection freedom is checked or claimed, and the sampled Geometry FAIL remains a blocking defect for any stronger deformation-acceptance claim.",
             "No anatomy, volume preservation, skin sliding, visual acceptance, Animation timing/interpolation, runtime/controller, gameplay, CANON, production readiness or Rigging mastery is claimed.",

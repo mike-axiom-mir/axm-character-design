@@ -28,6 +28,11 @@ jobs:
         env:
           PYTHONPATH: src
         run: python tools/build_character_baseline.py --out evidence/character-neutral-a-001
+      - name: Build exact flex transition audit
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_flex_transition_audit.py --out evidence/character-neutral-a-001
       - name: Upload exact retained evidence
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4

@@ -1,0 +1,58 @@
+name: Geometry connected shoulder topology evidence
+
+on:
+  push:
+    branches:
+      - studio/geometry-character-connected-shoulder-001
+  pull_request:
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Character head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Checkout pinned UC topology donor
+        uses: actions/checkout@v4
+        with:
+          repository: mike-axiom-mir/axm-universal-creation
+          ref: dde8d952161788f8bf21118f91edd3163e51277d
+          path: .donor/uc
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q src tools tests .donor/uc/src/axm_uc/mesh_topology.py
+      - name: Full Character unit suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Build exact connected shoulder evidence with pinned UC observer
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src:.donor/uc/src
+        run: python tools/build_shoulder_connected_topology.py --out evidence/character-connected-shoulder-001
+      - name: Bind retained evidence to exact source head
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          printf '%s\n' "$actual" > evidence/character-connected-shoulder-001/exact-head.txt
+          printf '%s\n' "20f6413f1b09e32cb3667ccd01f266cd849d8e93" > evidence/character-connected-shoulder-001/exact-organic-donor-head.txt
+          printf '%s\n' "dde8d952161788f8bf21118f91edd3163e51277d" > evidence/character-connected-shoulder-001/exact-uc-donor-head.txt
+      - name: Upload exact retained Geometry evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-connected-shoulder-001-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/character-connected-shoulder-001/
+          if-no-files-found: error

@@ -122,10 +122,10 @@ def audit_shoulder_bridge(candidate=None):
         baseline_inside = sum(value <= 1.0 + tol for value in baseline_ribcage_values)
         bridge_inside = sum(value <= 1.0 + tol for value in bridge_values)
         bridge_center_ribcage = _ellipsoid_implicit(bridge["center"], ribcage)
-        if bridge_inside < MIN_ROOT_RING_SAMPLES_IN_BRIDGE:
-            raise ValueError(f"insufficient shoulder bridge root-ring coverage: {side}")
         if bridge_center_ribcage > 1.0 + tol:
             raise ValueError(f"shoulder bridge center detached from ribcage: {side}")
+        if bridge_inside < MIN_ROOT_RING_SAMPLES_IN_BRIDGE:
+            raise ValueError(f"insufficient shoulder bridge root-ring coverage: {side}")
         shoulder_results.append(
             {
                 "side": side,

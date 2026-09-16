@@ -1,10 +1,11 @@
-from copy import deepcopy
 import unittest
 
 from axm_character_design.organic_form import canonical_digest
 from axm_character_design.shoulder_source_lineage import (
     EXPECTED_REVIEW_MESH_DIGEST,
     EXPECTED_REVIEW_SOURCE_DIGEST,
+    QA_RECONSTRUCTION_MESH_DIGEST,
+    QA_RECONSTRUCTION_SOURCE_DIGEST,
     SOURCE_ID,
     STATUS,
     adopted_character_source,
@@ -20,12 +21,25 @@ class ShoulderSourceLineageTests(unittest.TestCase):
         self.assertEqual(receipt["status"], STATUS)
         self.assertEqual(source["study_id"], SOURCE_ID)
         self.assertNotEqual(canonical_digest(source), EXPECTED_REVIEW_SOURCE_DIGEST)
-        self.assertEqual(receipt["accepted_review_source_digest"], EXPECTED_REVIEW_SOURCE_DIGEST)
-        self.assertEqual(receipt["accepted_review_mesh_digest"], EXPECTED_REVIEW_MESH_DIGEST)
+        self.assertEqual(receipt["repository_review_source_digest"], EXPECTED_REVIEW_SOURCE_DIGEST)
+        self.assertEqual(receipt["repository_review_mesh_digest"], EXPECTED_REVIEW_MESH_DIGEST)
         self.assertEqual(receipt["adopted_mesh_digest"], EXPECTED_REVIEW_MESH_DIGEST)
         self.assertEqual(receipt["form_metrics"]["vertex_count"], 504)
         self.assertEqual(receipt["form_metrics"]["triangle_count"], 908)
         self.assertEqual(receipt["form_metrics"]["degenerate_triangles"], 0)
+
+    def test_QA_reconstruction_identity_is_retained_but_not_relabelled_as_repository_source(self):
+        receipt = audit_source_lineage_adoption(adopted_character_source())
+        self.assertNotEqual(QA_RECONSTRUCTION_SOURCE_DIGEST, EXPECTED_REVIEW_SOURCE_DIGEST)
+        self.assertEqual(QA_RECONSTRUCTION_MESH_DIGEST, EXPECTED_REVIEW_MESH_DIGEST)
+        self.assertEqual(
+            receipt["visual_qa_reconstruction_source_digest"],
+            QA_RECONSTRUCTION_SOURCE_DIGEST,
+        )
+        self.assertEqual(
+            receipt["visual_qa_reconstruction_mesh_digest"],
+            EXPECTED_REVIEW_MESH_DIGEST,
+        )
 
     def test_source_lineage_preserves_exact_transition_contract(self):
         source = adopted_character_source()
@@ -50,10 +64,16 @@ class ShoulderSourceLineageTests(unittest.TestCase):
         self.assertEqual(canonical_digest(first), canonical_digest(second))
         self.assertEqual(canonical_digest(first), EXPECTED_REVIEW_MESH_DIGEST)
 
-    def test_review_provenance_drift_fails_closed(self):
+    def test_repository_review_provenance_drift_fails_closed(self):
         source = adopted_character_source()
-        source["source_lineage_adoption"]["accepted_review_mesh_digest"] = "0" * 64
-        with self.assertRaisesRegex(ValueError, "review mesh provenance drift"):
+        source["source_lineage_adoption"]["repository_review_mesh_digest"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "repository review mesh provenance drift"):
+            audit_source_lineage_adoption(source)
+
+    def test_QA_reconstruction_provenance_drift_fails_closed(self):
+        source = adopted_character_source()
+        source["source_lineage_adoption"]["visual_qa_reconstruction_source_digest"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "QA reconstruction source provenance drift"):
             audit_source_lineage_adoption(source)
 
     def test_form_semantic_drift_fails_closed(self):

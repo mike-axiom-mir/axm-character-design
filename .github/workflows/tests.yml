@@ -1,0 +1,37 @@
+name: Character organic form baseline
+
+on:
+  push:
+    branches:
+      - studio/organic-character-neutral-a-001
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q src tools tests
+      - name: Unit tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Build exact retained evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_character_baseline.py --out evidence/character-neutral-a-001
+      - name: Upload exact retained evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-neutral-a-001-evidence
+          path: evidence/character-neutral-a-001/
+          if-no-files-found: error

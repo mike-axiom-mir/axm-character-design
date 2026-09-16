@@ -1,0 +1,70 @@
+name: Rigging Character shoulder stitch-edge rebind evidence
+
+on:
+  push:
+    branches:
+      - studio/rigging-character-shoulder-stitch-rebind-001
+  pull_request:
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Character head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile
+        run: python -m compileall -q src tools tests
+
+      - name: Full Character unit suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+      - name: Build exact Rigging stitch-edge rebind evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: >-
+          python tools/build_connected_shoulder_stitch_rigging_rebind_evidence.py
+          --out evidence/character-shoulder-stitch-rigging-rebind-001
+
+      - name: Bind retained evidence to exact lineage
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          geometry="b65d73e514c23670204915bde8ce935a3b417574"
+          previous_rigging="e5b129ba936f252946f48921be5a3096d8c2f801"
+          profile_source="62a60ee6b930d13898203d37b0cc9dab6b13d99d"
+          test "$actual" = "$expected"
+          git merge-base --is-ancestor "$geometry" HEAD
+          git merge-base --is-ancestor "$previous_rigging" HEAD
+          git merge-base --is-ancestor "$profile_source" HEAD
+          git cat-file -e "$geometry^{commit}"
+          git cat-file -e "$previous_rigging^{commit}"
+          git cat-file -e "$profile_source^{commit}"
+          printf '%s\n' "$actual" > evidence/character-shoulder-stitch-rigging-rebind-001/exact-head.txt
+          printf '%s\n' "$geometry" > evidence/character-shoulder-stitch-rigging-rebind-001/exact-geometry-stitch-repair-head.txt
+          printf '%s\n' "$previous_rigging" > evidence/character-shoulder-stitch-rigging-rebind-001/exact-previous-rigging-rebind-head.txt
+          printf '%s\n' "$profile_source" > evidence/character-shoulder-stitch-rigging-rebind-001/exact-rigging-profile-source-head.txt
+
+      - name: Upload exact retained Rigging stitch-edge rebind evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-shoulder-stitch-rigging-rebind-001-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/character-shoulder-stitch-rigging-rebind-001/
+          if-no-files-found: error

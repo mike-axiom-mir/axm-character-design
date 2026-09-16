@@ -1,0 +1,63 @@
+name: Rigging shoulder diagonal-repair rebind evidence
+
+on:
+  push:
+    branches:
+      - studio/rigging-character-shoulder-diagonal-rebind-001
+  pull_request:
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Character head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q src tools tests
+      - name: Full Character unit suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Build exact Rigging rebind evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_connected_shoulder_diagonal_rigging_rebind_evidence.py --out evidence/character-shoulder-diagonal-rigging-rebind-001
+      - name: Bind retained evidence to exact lineage
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          geometry="fa69eea233a56dc7e09b22c62a9e37bfa97bc994"
+          previous_rebind="ef73f87e0ebe4ce101b2fe25a92441ada7837b83"
+          profile_source="62a60ee6b930d13898203d37b0cc9dab6b13d99d"
+          donor_rig="b0a03cbcb61e0f8deec37172d22ff1a7fff306c9"
+          test "$actual" = "$expected"
+          git merge-base --is-ancestor "$geometry" HEAD
+          git fetch --no-tags origin "$previous_rebind" "$profile_source" "$donor_rig"
+          git cat-file -e "$previous_rebind^{commit}"
+          git cat-file -e "$profile_source^{commit}"
+          git cat-file -e "$donor_rig^{commit}"
+          printf '%s\n' "$actual" > evidence/character-shoulder-diagonal-rigging-rebind-001/exact-head.txt
+          printf '%s\n' "$geometry" > evidence/character-shoulder-diagonal-rigging-rebind-001/exact-geometry-repair-head.txt
+          printf '%s\n' "$previous_rebind" > evidence/character-shoulder-diagonal-rigging-rebind-001/exact-previous-rigging-rebind-head.txt
+          printf '%s\n' "$profile_source" > evidence/character-shoulder-diagonal-rigging-rebind-001/exact-rigging-profile-source-head.txt
+          printf '%s\n' "$donor_rig" > evidence/character-shoulder-diagonal-rigging-rebind-001/exact-donor-rigging-head.txt
+      - name: Upload exact retained Rigging rebind evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-shoulder-diagonal-rigging-rebind-001-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/character-shoulder-diagonal-rigging-rebind-001/
+          if-no-files-found: error

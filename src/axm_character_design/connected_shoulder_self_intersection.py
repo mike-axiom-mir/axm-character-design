@@ -22,6 +22,7 @@ from .shoulder_connected_topology import build_connected_shoulder_specimen
 
 SCHEMA = "axm.character-connected-shoulder-self-intersection-evidence/v0.1"
 STATUS = "PASS_CHARACTER_CONNECTED_SHOULDER_SAMPLED_NONADJACENT_SELF_INTERSECTION_GATE"
+FAIL_STATUS = "FAIL_CHARACTER_CONNECTED_SHOULDER_SAMPLED_NONADJACENT_SELF_INTERSECTION_GATE"
 RIGGING_HEAD = "b0a03cbcb61e0f8deec37172d22ff1a7fff306c9"
 ANIMAL_DEFORMED_METHOD_PRECEDENT = {
     "repository": "mike-axiom-mir/axm-animal-design",
@@ -55,7 +56,7 @@ def audit_connected_shoulder_self_intersection():
         raise ValueError("Rigging Geometry dependency drift")
 
     samples = []
-    all_pass = True
+    samples_pass = True
     for side in ("L", "R"):
         specimen = build_connected_shoulder_specimen(side)
         observed_digest = canonical_digest({
@@ -70,7 +71,7 @@ def audit_connected_shoulder_self_intersection():
                 report["status"] == "PASS_NO_NONADJACENT_SELF_INTERSECTIONS"
                 and report["self_intersection_pair_count"] == 0
             )
-            all_pass &= passed
+            samples_pass &= passed
             samples.append({
                 "side": side,
                 "angle_deg": pose["angle_deg"],
@@ -88,11 +89,11 @@ def audit_connected_shoulder_self_intersection():
         and coplanar["status"] == "SELF_INTERSECTIONS_DETECTED"
         and coplanar["self_intersection_pair_count"] == 1
     )
-    all_pass &= controls_pass
+    all_pass = samples_pass and controls_pass and len(samples) == 6
 
     return {
         "schema": SCHEMA,
-        "status": STATUS if all_pass else "FAIL_CHARACTER_CONNECTED_SHOULDER_SAMPLED_NONADJACENT_SELF_INTERSECTION_GATE",
+        "status": STATUS if all_pass else FAIL_STATUS,
         "producer_dependencies": {
             "geometry_head": GEOMETRY_HEAD,
             "rigging_head": RIGGING_HEAD,
@@ -122,7 +123,7 @@ def audit_connected_shoulder_self_intersection():
             "exact_geometry_identity": "PASS",
             "exact_rigging_prerequisite": "PASS",
             "six_retained_samples_checked": "PASS" if len(samples) == 6 else "FAIL",
-            "zero_nonadjacent_self_intersections_at_all_samples": "PASS" if all_pass else "FAIL",
+            "zero_nonadjacent_self_intersections_at_all_samples": "PASS" if samples_pass else "FAIL",
             "crossing_and_coplanar_negative_controls": "PASS" if controls_pass else "FAIL",
             "continuous_pose_range": "NOT_CHECKED",
             "topological_neighbor_foldover_or_contact": "NOT_CHECKED_BY_THIS_OBSERVER",
@@ -135,6 +136,7 @@ def audit_connected_shoulder_self_intersection():
             "Triangle pairs sharing an indexed source vertex are deliberately excluded, so local adjacent fold-over/contact remains outside this gate.",
             "The three retained pose samples do not prove continuous interpolation between -40 and +40 degrees.",
             "No Character source, connected Geometry positions/faces, Rigging weights, joint axes, or pose angles are changed by this evidence layer.",
+            "A detected intersection is retained as a scoped FAIL finding rather than being hidden by making evidence generation itself fail.",
             "No visual quality, anatomy, volume preservation, authored normals/tangents, Animation, runtime/controller, collision/gameplay, CANON, production readiness, game readiness, or Geometry mastery is claimed.",
         ],
     }
@@ -144,8 +146,6 @@ def build_connected_shoulder_self_intersection_evidence(out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     receipt = audit_connected_shoulder_self_intersection()
-    if receipt["status"] != STATUS:
-        raise ValueError(receipt["status"])
 
     (out / "connected-shoulder-self-intersection-audit.json").write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"

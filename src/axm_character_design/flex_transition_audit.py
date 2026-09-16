@@ -57,11 +57,18 @@ def audit_flex_transitions(study=None):
     flex_landmarks = {zone["id"]: zone["landmark"] for zone in study["flex_zones"]}
     tolerance = study["design_constraints"]["bilateral_tolerance_m"]
 
+    expected_ids = {item[0] for item in INTERNAL_TRANSITIONS} | {
+        item[0] for item in MASS_INTERFACES
+    }
+    declared_ids = set(flex_landmarks)
+    if expected_ids != declared_ids:
+        missing = sorted(declared_ids - expected_ids)
+        extra = sorted(expected_ids - declared_ids)
+        raise ValueError(f"flex audit coverage drift: missing={missing} extra={extra}")
+
     internal = []
     for flex_id, proximal_id, distal_id in INTERNAL_TRANSITIONS:
-        landmark = flex_landmarks.get(flex_id)
-        if landmark is None:
-            raise ValueError(f"unknown declared flex zone: {flex_id}")
+        landmark = flex_landmarks[flex_id]
         proximal = segments[proximal_id]
         distal = segments[distal_id]
         if proximal["b"] != landmark or distal["a"] != landmark:
@@ -99,9 +106,7 @@ def audit_flex_transitions(study=None):
 
     mass_interfaces = []
     for flex_id, segment_id, mass_id in MASS_INTERFACES:
-        landmark = flex_landmarks.get(flex_id)
-        if landmark is None:
-            raise ValueError(f"unknown declared flex zone: {flex_id}")
+        landmark = flex_landmarks[flex_id]
         segment = segments[segment_id]
         mass = masses[mass_id]
         if segment["a"] != landmark:
@@ -137,7 +142,6 @@ def audit_flex_transitions(study=None):
     audited_ids = {entry["flex_zone"] for entry in internal} | {
         entry["flex_zone"] for entry in mass_interfaces
     }
-    declared_ids = set(flex_landmarks)
     if audited_ids != declared_ids:
         missing = sorted(declared_ids - audited_ids)
         extra = sorted(audited_ids - declared_ids)

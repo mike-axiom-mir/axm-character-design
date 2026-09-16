@@ -18,6 +18,8 @@ STATUS = "PASS_BOUNDED_CHARACTER_SHOULDER_POSE_CLEARANCE_REVIEW_CANDIDATE"
 
 EXPECTED_PARENT_SOURCE_DIGEST = "dbb20e6e7dc1874b3b22553d0407791f05699f23ebb42c4e249a259f56613f1d"
 EXPECTED_PARENT_MESH_DIGEST = "30a4612212f2e8252b6f813912ce76c655763e6d3abb4650c04ad1af72baea7f"
+EXPECTED_CANDIDATE_SOURCE_DIGEST = "a5f9bd6ef8b783261bdbf2debac46eafc7dc972b2e6ad02e26eafc74f73092b1"
+EXPECTED_CANDIDATE_MESH_DIGEST = "59ea0a3d53825af372056593f41d602082cf83ba577f2393ccb4ca8d26f40ea9"
 
 SHOULDER_X_M = 0.23275
 ELBOW_X_M = 0.51000
@@ -129,6 +131,7 @@ def audit_shoulder_pose_clearance_candidate(candidate=None):
         raise ValueError("accepted E shoulder transition regions changed")
 
     candidate_mesh = build_adopted_character_mesh(candidate)
+    candidate_source_digest = canonical_digest(candidate)
     candidate_mesh_digest = canonical_digest(candidate_mesh)
 
     parent_checks = mesh_checks(parent_mesh)
@@ -171,6 +174,10 @@ def audit_shoulder_pose_clearance_candidate(candidate=None):
         raise ValueError("review candidate truth-state drift")
     if review["downstream_state"] != "GEOMETRY_RIGGING_VISUAL_REBIND_REQUIRED":
         raise ValueError("review candidate downstream-state drift")
+    if candidate_source_digest != EXPECTED_CANDIDATE_SOURCE_DIGEST:
+        raise ValueError("review candidate source identity drift")
+    if candidate_mesh_digest != EXPECTED_CANDIDATE_MESH_DIGEST:
+        raise ValueError("review candidate mesh identity drift")
 
     return {
         "schema": SCHEMA,
@@ -179,7 +186,7 @@ def audit_shoulder_pose_clearance_candidate(candidate=None):
         "parent_source_id": PARENT_SOURCE_ID,
         "parent_source_digest": parent_digest,
         "parent_mesh_digest": EXPECTED_PARENT_MESH_DIGEST,
-        "candidate_source_digest": canonical_digest(candidate),
+        "candidate_source_digest": candidate_source_digest,
         "candidate_mesh_digest": candidate_mesh_digest,
         "bounded_delta": review["bounded_source_delta"],
         "form_metrics": {
@@ -200,7 +207,8 @@ def audit_shoulder_pose_clearance_candidate(candidate=None):
             "bounded_landmark_delta_only": "PASS",
             "bilateral_symmetry": "PASS",
             "accepted_E_transition_semantics_preserved": "PASS",
-            "candidate_mesh_deterministic_identity_retained_in_receipt": "PASS",
+            "exact_candidate_source_identity": "PASS",
+            "exact_candidate_mesh_identity": "PASS",
             "whole_body_bounds_preserved": "PASS",
             "arm_segment_length_delta_below_1_percent": "PASS",
             "existing_A_rest_angle_gate": "PASS",
@@ -228,7 +236,7 @@ def audit_shoulder_pose_clearance_candidate(candidate=None):
         "truth_boundary": [
             "This is a derived Character Organic review candidate, not an adopted source successor.",
             "Only bilateral shoulder/elbow landmarks plus the corresponding shoulder-width metadata change; wrists, hands, masses, segment radii, flex-zone truth states and accepted E transition semantics are preserved.",
-            "The candidate source/mesh digests are emitted as exact retained evidence; they are not predeclared as acceptance before the exact-head workflow builds them.",
+            "The exact candidate source and proof-mesh identities are pinned for retained review evidence only; pinning them is not source adoption.",
             "The existing A-rest angle gate and proof-mesh structural checks are source-form checks, not anatomy or deformation acceptance.",
             "No connected-topology, self-intersection, rigging, weighting, animation, material, target-host, runtime, gameplay, CANON, production-readiness or Organic Form mastery claim is made.",
         ],

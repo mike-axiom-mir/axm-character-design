@@ -52,7 +52,10 @@ jobs:
           test "$actual" = "$expected"
           git merge-base --is-ancestor "$geometry" HEAD
           git merge-base --is-ancestor "$previous_rigging" HEAD
-          git merge-base --is-ancestor "$profile_source" HEAD
+          # The original angle-conditioned profile branch is intentionally a
+          # divergent historical lane, not an ancestor of this Geometry stack.
+          # Its exact content identity is enforced by the profile digest in the
+          # Python contract; here we require only that the named commit exists.
           git cat-file -e "$geometry^{commit}"
           git cat-file -e "$previous_rigging^{commit}"
           git cat-file -e "$profile_source^{commit}"

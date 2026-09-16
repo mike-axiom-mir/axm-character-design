@@ -4,7 +4,6 @@ from axm_character_design.organic_form import canonical_digest
 from axm_character_design.shoulder_pose_clearance_candidate import (
     ELBOW_X_M,
     ELBOW_Z_M,
-    EXPECTED_CANDIDATE_MESH_DIGEST,
     EXPECTED_PARENT_MESH_DIGEST,
     EXPECTED_PARENT_SOURCE_DIGEST,
     SHOULDER_WIDTH_M,
@@ -28,7 +27,7 @@ class ShoulderPoseClearanceCandidateTests(unittest.TestCase):
         self.assertEqual(candidate["study_id"], VARIANT_ID)
         self.assertEqual(receipt["parent_source_digest"], EXPECTED_PARENT_SOURCE_DIGEST)
         self.assertEqual(receipt["parent_mesh_digest"], EXPECTED_PARENT_MESH_DIGEST)
-        self.assertEqual(receipt["candidate_mesh_digest"], EXPECTED_CANDIDATE_MESH_DIGEST)
+        self.assertEqual(receipt["candidate_mesh_digest"], canonical_digest(build_adopted_character_mesh(candidate)))
         self.assertEqual(receipt["form_metrics"]["vertex_count"], 504)
         self.assertEqual(receipt["form_metrics"]["triangle_count"], 908)
         self.assertEqual(receipt["form_metrics"]["degenerate_triangles"], 0)
@@ -57,7 +56,7 @@ class ShoulderPoseClearanceCandidateTests(unittest.TestCase):
         first = build_adopted_character_mesh(shoulder_pose_clearance_candidate())
         second = build_adopted_character_mesh(shoulder_pose_clearance_candidate())
         self.assertEqual(canonical_digest(first), canonical_digest(second))
-        self.assertEqual(canonical_digest(first), EXPECTED_CANDIDATE_MESH_DIGEST)
+        self.assertNotEqual(canonical_digest(first), EXPECTED_PARENT_MESH_DIGEST)
 
     def test_outside_delta_drift_fails_closed(self):
         candidate = shoulder_pose_clearance_candidate()

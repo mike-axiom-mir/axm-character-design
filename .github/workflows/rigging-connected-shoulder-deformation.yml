@@ -1,0 +1,51 @@
+name: Rigging connected shoulder deformation evidence
+
+on:
+  push:
+    branches:
+      - studio/rigging-character-connected-shoulder-001
+  pull_request:
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Character head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q src tools tests
+      - name: Full Character unit suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Build exact connected shoulder deformation evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_connected_shoulder_deformation_evidence.py --out evidence/character-connected-shoulder-rigging-001
+      - name: Bind retained evidence to exact heads
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          printf '%s\n' "$actual" > evidence/character-connected-shoulder-rigging-001/exact-head.txt
+          printf '%s\n' "dcb2185a42072540ef2be37329735357561e01b5" > evidence/character-connected-shoulder-rigging-001/exact-geometry-head.txt
+          printf '%s\n' "character-neutral-a-shoulder-source-004" > evidence/character-connected-shoulder-rigging-001/exact-source-id.txt
+      - name: Upload exact retained Rigging evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-connected-shoulder-rigging-001-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/character-connected-shoulder-rigging-001/
+          if-no-files-found: error

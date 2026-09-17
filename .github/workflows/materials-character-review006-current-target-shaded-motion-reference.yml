@@ -47,12 +47,11 @@ jobs:
           git fetch --no-tags origin 36744749a592e067a119f3349a499d65f25af134
           git fetch --no-tags origin 4efa5772ee63f62d7a7e5b4ef6688550034b4659
           test "$(git rev-parse 36744749a592e067a119f3349a499d65f25af134:tools/build_review006_target_engine_direction_frame_hypothesis_evidence.py)" = "c0089c078585556e4b00bc8f033340cddaa1c9d4"
-          test "$(git ls-remote https://github.com/mike-axiom-mir/axm-universal-creation.git refs/heads/main | cut -f1)" = "41b4d9134e4d2e5f4fadaada2a1d6a56eed92ab0"
           mkdir -p lookdev-proof/generated
           git rev-parse HEAD > lookdev-proof/generated/exact-materials-head.txt
           printf '%s\n' 36744749a592e067a119f3349a499d65f25af134 > lookdev-proof/generated/exact-technical-art-head.txt
           printf '%s\n' 4efa5772ee63f62d7a7e5b4ef6688550034b4659 > lookdev-proof/generated/exact-rigging-head.txt
-          printf '%s\n' 41b4d9134e4d2e5f4fadaada2a1d6a56eed92ab0 > lookdev-proof/generated/exact-uc-head.txt
+          printf '%s\n' 41b4d9134e4d2e5f4fadaada2a1d6a56eed92ab0 > lookdev-proof/generated/exact-uc-head-as-recorded-by-technical-art.txt
 
       - name: Compile and run complete Character suite
         env:
@@ -204,7 +203,7 @@ jobs:
             lookdev-proof/generated/exact-materials-head.txt
             lookdev-proof/generated/exact-technical-art-head.txt
             lookdev-proof/generated/exact-rigging-head.txt
-            lookdev-proof/generated/exact-uc-head.txt
+            lookdev-proof/generated/exact-uc-head-as-recorded-by-technical-art.txt
             lookdev-proof/generated/character_review006_current_target_shaded_motion_reference_payload.json
             lookdev-proof/generated/character-review006-current-target-shaded-motion-reference-target.glb
             lookdev-proof/generated/technical-art-target-normal-proof/

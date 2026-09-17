@@ -7,6 +7,9 @@ import json
 from axm_character_design.review006_shoulder_continuous_clearance import (
     build_review006_continuous_nonadjacent_clearance_evidence,
 )
+from axm_character_design.review006_shoulder_continuous_edge_adjacent_fold import (
+    build_review006_continuous_edge_adjacent_fold_evidence,
+)
 from axm_character_design.review006_shoulder_deformation_gradient_frame import (
     build_review006_deformation_gradient_frame_evidence,
 )
@@ -29,7 +32,8 @@ def main():
         description=(
             "Build exact review-006 Rigging structural, sub-degree boundary, "
             "deformation-gradient frame, neutral bind-frame, continuous "
-            "nonadjacent-clearance and sampled edge-adjacent fold evidence."
+            "nonadjacent-clearance, sampled edge-adjacent fold and continuous "
+            "edge-adjacent fold evidence."
         )
     )
     parser.add_argument("out_dir")
@@ -41,6 +45,7 @@ def main():
     neutral = build_review006_neutral_bind_frame_evidence(args.out_dir)
     continuous = build_review006_continuous_nonadjacent_clearance_evidence(args.out_dir)
     adjacent = build_review006_sampled_edge_adjacent_fold_margin_evidence(args.out_dir)
+    continuous_edge = build_review006_continuous_edge_adjacent_fold_evidence(args.out_dir)
     print(json.dumps({
         "status": safe["status"],
         "safe_envelope_deg": safe["safe_envelope"]["range_deg"],
@@ -80,6 +85,14 @@ def main():
         "edge_adjacent_left_min_fold_angle_deg": adjacent["sampled_edge_adjacent_fold_guard"]["sides"]["L"]["minimum_sampled_fold_angle_deg"],
         "edge_adjacent_right_min_fold_angle_deg": adjacent["sampled_edge_adjacent_fold_guard"]["sides"]["R"]["minimum_sampled_fold_angle_deg"],
         "edge_adjacent_negative_control_rejected": adjacent["negative_control"]["rejected"],
+        "continuous_edge_adjacent_fold_status": continuous_edge["status"],
+        "continuous_edge_adjacent_range_deg": continuous_edge["continuous_edge_adjacent_fold_guard"]["range_deg"],
+        "continuous_edge_adjacent_all_real_owner_angles_certified": continuous_edge["continuous_edge_adjacent_fold_guard"]["all_real_owner_angles_certified"],
+        "continuous_edge_adjacent_left_min_slack_rad": continuous_edge["continuous_edge_adjacent_fold_guard"]["sides"]["L"]["minimum_certificate_slack_rad"],
+        "continuous_edge_adjacent_right_min_slack_rad": continuous_edge["continuous_edge_adjacent_fold_guard"]["sides"]["R"]["minimum_certificate_slack_rad"],
+        "continuous_edge_adjacent_left_subdivisions": continuous_edge["continuous_edge_adjacent_fold_guard"]["sides"]["L"]["adaptive_subdivision_count"],
+        "continuous_edge_adjacent_right_subdivisions": continuous_edge["continuous_edge_adjacent_fold_guard"]["sides"]["R"]["adaptive_subdivision_count"],
+        "continuous_edge_adjacent_negative_control_rejected": continuous_edge["negative_control"]["rejected"],
     }, sort_keys=True))
 
 

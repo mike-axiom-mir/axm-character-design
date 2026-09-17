@@ -1,0 +1,125 @@
+name: Animation Character review006 target-host loop seam witness
+
+on:
+  push:
+    branches: [studio/animation-character-review006-target-host-playback-002]
+    paths:
+      - "animation-proof/character_review006_target_host_loop_transition_observe.gd"
+      - "animation/character_review006_target_host_loop_transition_review_001.json"
+      - ".github/workflows/animation-character-review006-target-host-loop-transition.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repeated-loop-seam:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact Animation head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bind exact Character lineage
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor c2ae66c75abac064b679f1597b7544d058dc3ad1 HEAD
+          git merge-base --is-ancestor 1c021d40d7d606f6fb2a29e69f9353640aa33f60 HEAD
+          git merge-base --is-ancestor 9519be55581c009fd800d175677d9b50ee6926e6 HEAD
+          git merge-base --is-ancestor fa16c44b1a488d43842470fc9f30c5fb5e98cab6 HEAD
+          mkdir -p animation-proof/generated
+          git rev-parse HEAD > animation-proof/generated/exact-animation-loop-transition-head.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build exact current transport GLB and payload
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          rm -rf lookdev-proof/generated
+          mkdir -p lookdev-proof/generated animation-proof/generated
+          python tools/build_character_review006_current_motion_direction_frame_evidence.py
+          test "$(sha256sum lookdev-proof/generated/character-review006-current-motion-target.glb | awk '{print $1}')" = "76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99"
+          cp lookdev-proof/generated/character-review006-current-motion-target.glb animation-proof/generated/
+          cp lookdev-proof/generated/character_review006_current_motion_direction_frame_payload.json animation-proof/generated/
+          cp animation/character_review006_target_host_loop_transition_review_001.json animation-proof/character_review006_target_host_loop_transition_review_001.json
+
+      - name: Download pinned Godot 4.7.2
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Exercise repeated loop seam through AnimationPlayer
+        run: |
+          set -euo pipefail
+          rm -f animation-proof/character-review006-target-host-loop-transition-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 800x600x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path animation-proof \
+            --script character_review006_target_host_loop_transition_observe.gd
+
+      - name: Validate bounded loop-transition evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('animation-proof/character-review006-target-host-loop-transition-runtime-receipt.json')
+          r=json.loads(p.read_text())
+          assert r['state']=='PASS_DIAGNOSTIC',r
+          assert r['result']=='PASS_CHARACTER_REVIEW006_TARGET_HOST_REPEATED_LOOP_SEAM_TRANSITION',r
+          assert r['identity']['target_glb_sha256']=='76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99',r
+          assert r['imported_animation']['track_count']==6,r
+          assert all(row['key_count']==321 for row in r['imported_animation']['track_rows']),r
+          assert r['exact_loop_seam']['max_rotation_error_deg']<=0.001,r
+          assert r['exact_loop_seam']['max_scale_component_error']<=0.00001,r
+          assert r['negative_control']['expected_rejection'] is True,r
+          loop=r['repeated_animationplayer_loop']
+          assert loop['observer_only_loop_mode_override']=='LOOP_LINEAR',r
+          assert loop['wrap_count']>=3,r
+          assert loop['max_pre_endpoint_rotation_error_deg']<=0.5,r
+          assert loop['max_post_endpoint_rotation_error_deg']<=0.5,r
+          assert loop['max_pre_endpoint_scale_error']<=0.005,r
+          assert loop['max_post_endpoint_scale_error']<=0.005,r
+          assert r['preserved_downstream_boundary']['materials_result']=='INCONCLUSIVE_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_MIXED_RESPONSE',r
+          assert r['truth_boundary']['runtime_controller_or_state_machine']=='NOT_EVALUATED',r
+          assert r['truth_boundary']['physics_collision_input_gameplay']=='NOT_EVALUATED',r
+          print(json.dumps(r,indent=2))
+          PY
+
+      - name: Retain exact Character loop-transition evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-target-host-loop-transition-${{ github.sha }}
+          path: |
+            animation/character_review006_target_host_loop_transition_review_001.json
+            animation-proof/project.godot
+            animation-proof/character_review006_target_host_loop_transition_observe.gd
+            animation-proof/generated/character_review006_current_motion_direction_frame_payload.json
+            animation-proof/generated/character-review006-current-motion-target.glb
+            animation-proof/generated/exact-animation-loop-transition-head.txt
+            animation-proof/character-review006-target-host-loop-transition-runtime-receipt.json
+          if-no-files-found: warn
+          retention-days: 60

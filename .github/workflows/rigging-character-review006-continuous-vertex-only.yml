@@ -1,0 +1,115 @@
+name: Rigging Character review006 continuous vertex-only evidence
+
+on:
+  pull_request:
+    paths:
+      - "src/axm_character_design/review006_shoulder_continuous_vertex_only_cone.py"
+      - "tests/test_review006_shoulder_continuous_vertex_only_cone.py"
+      - ".github/workflows/rigging-character-review006-continuous-vertex-only.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Character head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile exact Rigging observer and test
+        run: |
+          python -m compileall -q \
+            src/axm_character_design/review006_shoulder_continuous_vertex_only_cone.py \
+            tests/test_review006_shoulder_continuous_vertex_only_cone.py
+
+      - name: Run bounded continuous vertex-only Rigging test
+        env:
+          PYTHONPATH: src
+        run: python -m unittest tests.test_review006_shoulder_continuous_vertex_only_cone -v
+
+      - name: Build exact continuous vertex-only evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: |
+          rm -rf build/review006-continuous-vertex-only
+          python - <<'PY'
+          import json
+          from axm_character_design.review006_shoulder_continuous_vertex_only_cone import (
+              build_review006_continuous_vertex_only_neighbor_cone_evidence,
+          )
+          audit = build_review006_continuous_vertex_only_neighbor_cone_evidence(
+              "build/review006-continuous-vertex-only"
+          )
+          guard = audit["continuous_vertex_only_neighbor_guard"]
+          print(json.dumps({
+              "status": audit["status"],
+              "range_deg": guard["range_deg"],
+              "all_real_owner_angles_certified": guard["all_real_owner_angles_certified"],
+              "left_pair_count": guard["sides"]["L"]["vertex_only_neighbor_pair_count"],
+              "right_pair_count": guard["sides"]["R"]["vertex_only_neighbor_pair_count"],
+              "left_min_slack_rad": guard["sides"]["L"]["minimum_certificate_slack_rad"],
+              "right_min_slack_rad": guard["sides"]["R"]["minimum_certificate_slack_rad"],
+              "left_subdivisions": guard["sides"]["L"]["adaptive_subdivision_count"],
+              "right_subdivisions": guard["sides"]["R"]["adaptive_subdivision_count"],
+              "negative_control_rejected": audit["negative_control"]["rejected"],
+          }, sort_keys=True))
+          PY
+
+      - name: Bind evidence to exact source and Rigging lineage
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          geometry="8ad006f91ebb9934d5df98702e4410c74a1e68ea"
+          geometry_evidence="3519289f99c15ee3b7298b7bd625cf81e32b3c98"
+          historical_rigging="329c485f567faeeb79198c7b1ebc2974b3c3db60"
+          profile_source="62a60ee6b930d13898203d37b0cc9dab6b13d99d"
+          dense_predecessor="735df38e0fb4a38886da940a2de7045cc4321a28"
+          test "$actual" = "$expected"
+
+          # The selected opening-repair Geometry head is the receiving ancestor.
+          git merge-base --is-ancestor "$geometry" HEAD
+
+          # These exact evidence/profile donors are intentionally divergent siblings.
+          # Require their commits to exist and preserve the shared receiving root;
+          # do not manufacture ancestry that is not present in the repository graph.
+          for donor in "$geometry_evidence" "$historical_rigging" "$profile_source"; do
+            git cat-file -e "${donor}^{commit}"
+            if git merge-base --is-ancestor "$donor" HEAD; then
+              echo "divergent donor unexpectedly became a Rigging ancestor: $donor" >&2
+              exit 1
+            fi
+          done
+          test "$(git merge-base "$geometry_evidence" HEAD)" = "$geometry"
+
+          # The dense sampled predecessor belongs to this Rigging lane and must remain ancestry.
+          git merge-base --is-ancestor "$dense_predecessor" HEAD
+
+          printf '%s\n' "$actual" > build/review006-continuous-vertex-only/exact-head.txt
+          printf '%s\n' "$geometry" > build/review006-continuous-vertex-only/exact-geometry-head.txt
+          printf '%s\n' "$geometry_evidence" > build/review006-continuous-vertex-only/current-geometry-evidence-head.txt
+          printf '%s\n' "$historical_rigging" > build/review006-continuous-vertex-only/exact-historical-rigging-head.txt
+          printf '%s\n' "$profile_source" > build/review006-continuous-vertex-only/exact-profile-source-head.txt
+          printf '%s\n' "$dense_predecessor" > build/review006-continuous-vertex-only/exact-dense-predecessor-head.txt
+
+      - name: Upload retained exact-head continuous vertex-only evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-continuous-vertex-only-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/review006-continuous-vertex-only
+          if-no-files-found: error
+          retention-days: 90

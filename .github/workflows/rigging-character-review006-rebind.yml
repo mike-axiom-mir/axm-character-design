@@ -1,0 +1,101 @@
+name: Rigging Character review006 exact rebind
+
+on:
+  pull_request:
+    paths:
+      - "src/axm_character_design/review006_shoulder_rigging_rebind.py"
+      - "src/axm_character_design/review006_shoulder_safe_envelope.py"
+      - "src/axm_character_design/review006_shoulder_subdegree_boundary.py"
+      - "src/axm_character_design/review006_shoulder_deformation_gradient_frame.py"
+      - "src/axm_character_design/review006_shoulder_neutral_bind_frame.py"
+      - "src/axm_character_design/review006_shoulder_continuous_clearance.py"
+      - "src/axm_character_design/review006_shoulder_edge_adjacent_fold_margin.py"
+      - "src/axm_character_design/review006_shoulder_continuous_edge_adjacent_fold.py"
+      - "src/axm_character_design/review006_shoulder_vertex_only_neighbor_cone_margin.py"
+      - "src/axm_character_design/review006_shoulder_vertex_only_dense_margin.py"
+      - "src/axm_character_design/review006_connected_geometry.py"
+      - "src/axm_character_design/review006_self_intersection.py"
+      - "tests/test_review006_shoulder_rigging_rebind.py"
+      - "tests/test_review006_shoulder_safe_envelope.py"
+      - "tests/test_review006_shoulder_subdegree_boundary.py"
+      - "tests/test_review006_shoulder_deformation_gradient_frame.py"
+      - "tests/test_review006_shoulder_neutral_bind_frame.py"
+      - "tests/test_review006_shoulder_continuous_clearance.py"
+      - "tests/test_review006_shoulder_edge_adjacent_fold_margin.py"
+      - "tests/test_review006_shoulder_continuous_edge_adjacent_fold.py"
+      - "tests/test_review006_shoulder_vertex_only_neighbor_cone_margin.py"
+      - "tests/test_review006_shoulder_vertex_only_dense_margin.py"
+      - "tools/build_review006_rigging_rebind_evidence.py"
+      - ".github/workflows/rigging-character-review006-rebind.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Character head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile
+        run: python -m compileall -q src tests tools
+
+      - name: Full Character unit suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact review006 Rigging structural + contact evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: |
+          rm -rf build/review006-rigging-rebind
+          python tools/build_review006_rigging_rebind_evidence.py build/review006-rigging-rebind
+
+      - name: Bind retained evidence to exact lineage
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          geometry="8ad006f91ebb9934d5df98702e4410c74a1e68ea"
+          current_geometry_evidence="3519289f99c15ee3b7298b7bd625cf81e32b3c98"
+          discovery="93e957eca152c45286924da44e4f085af2de69b2"
+          historical_rigging="329c485f567faeeb79198c7b1ebc2974b3c3db60"
+          profile_source="62a60ee6b930d13898203d37b0cc9dab6b13d99d"
+          owner_frame_parent="a218b2cf2727482a78db8ab21afcf1bb72637bcc"
+          test "$actual" = "$expected"
+          git merge-base --is-ancestor "$geometry" HEAD
+          git merge-base --is-ancestor "$discovery" HEAD
+          git merge-base --is-ancestor "$owner_frame_parent" HEAD
+          git cat-file -e "$historical_rigging^{commit}"
+          git cat-file -e "$profile_source^{commit}"
+          git cat-file -e "$current_geometry_evidence^{commit}"
+          printf '%s\n' "$actual" > build/review006-rigging-rebind/exact-head.txt
+          printf '%s\n' "$geometry" > build/review006-rigging-rebind/exact-geometry-head.txt
+          printf '%s\n' "$current_geometry_evidence" > build/review006-rigging-rebind/current-geometry-evidence-head.txt
+          printf '%s\n' "$discovery" > build/review006-rigging-rebind/exact-discovery-head.txt
+          printf '%s\n' "$historical_rigging" > build/review006-rigging-rebind/exact-historical-rigging-head.txt
+          printf '%s\n' "$profile_source" > build/review006-rigging-rebind/exact-profile-source-head.txt
+          printf '%s\n' "$owner_frame_parent" > build/review006-rigging-rebind/exact-owner-frame-parent-head.txt
+
+      - name: Upload retained exact-head Rigging evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-rigging-rebind-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/review006-rigging-rebind
+          if-no-files-found: error
+          retention-days: 90

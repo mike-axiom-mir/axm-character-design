@@ -1,0 +1,224 @@
+name: Technical Art Character review006 target-host winding bridge
+
+on:
+  pull_request:
+    paths:
+      - "src/axm_character_design/target_host_surface_bridge.py"
+      - "tests/test_target_host_surface_bridge.py"
+      - "tools/build_review006_target_host_winding_bridge_evidence.py"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_target_host_winding_bridge_observe.gd"
+      - ".github/workflows/technical-art-character-review006-target-host-winding-bridge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full-character-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+  exact-target-host-winding-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact Technical Art head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact Technical Art producer and external owner heads
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor c007c327f2613989581192602338435b67b748d7 HEAD
+          test "$(git rev-parse HEAD:src/axm_character_design/review006_uc_skin_transport.py)" = "831fd7522ec2a8783862da653d6f12465252a3b2"
+          git fetch --no-tags origin 675a6800271f9be563763026e3b196607a0a1cd3
+          git fetch --no-tags origin 23609806af791330f5cd511fab55dd56a633fe21
+          test "$(git rev-parse 675a6800271f9be563763026e3b196607a0a1cd3:src/axm_character_design/review006_shoulder_neutral_bind_frame.py)" = "38b2510f0e543c05be3792af5aaf8cbd194c1467"
+          test "$(git rev-parse 23609806af791330f5cd511fab55dd56a633fe21:lookdev/character_review006_neutral_target_host_isolation_001.json)" = "d60c3394b026f5ddd8679db0219f63faf536600c"
+          rm -rf _rigging _materials evidence/rigging-neutral lookdev-proof/generated
+          git worktree add --detach _rigging 675a6800271f9be563763026e3b196607a0a1cd3
+          git worktree add --detach _materials 23609806af791330f5cd511fab55dd56a633fe21
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build exact Rigging neutral owner oracle
+        env:
+          PYTHONPATH: _rigging/src
+        run: |
+          python - <<'PY'
+          from axm_character_design.review006_shoulder_neutral_bind_frame import build_review006_neutral_bind_frame_evidence
+          row = build_review006_neutral_bind_frame_evidence("evidence/rigging-neutral")
+          assert row["status"] == "PASS_CHARACTER_REVIEW006_NEUTRAL_BIND_FRAME_CLOSURE__STRUCTURAL_BOUNDARY_UNCHANGED"
+          neutral = row["neutral_closure"]
+          assert neutral["total_receiver_vertices"] == 184
+          assert neutral["max_owner_vertex_drift_m"] == 0.0
+          assert neutral["max_gradient_identity_component_delta"] == 0.0
+          assert neutral["max_normal_matrix_identity_component_delta"] == 0.0
+          assert row["negative_control"]["rejected"] is True
+          PY
+
+      - name: Checkout exact current Universal Creation inspected by this lane
+        uses: actions/checkout@v4
+        with:
+          repository: mike-axiom-mir/axm-universal-creation
+          ref: 5bdeea950ed1292de23f65012d66a876ecf5c094
+          path: _uc
+          fetch-depth: 0
+
+      - name: Prove current UC pose receiver continuity
+        run: |
+          set -euo pipefail
+          test "$(git -C _uc rev-parse HEAD)" = "5bdeea950ed1292de23f65012d66a876ecf5c094"
+          git -C _uc merge-base --is-ancestor fed35116c1aabe54789f1197b7b2423b3b516169 5bdeea950ed1292de23f65012d66a876ecf5c094
+          test "$(git -C _uc rev-parse HEAD:src/axm_uc/game_pose_runtime.py)" = "dee5db003a56a0a5f55092c1b3db50f56a22de7e"
+          mkdir -p lookdev-proof/generated
+          git rev-parse HEAD > lookdev-proof/generated/exact-technical-art-head.txt
+          git -C _uc rev-parse HEAD > lookdev-proof/generated/exact-uc-head.txt
+          printf '%s\n' 675a6800271f9be563763026e3b196607a0a1cd3 > lookdev-proof/generated/exact-rigging-neutral-head.txt
+          printf '%s\n' 23609806af791330f5cd511fab55dd56a633fe21 > lookdev-proof/generated/exact-materials-neutral-isolation-head.txt
+
+      - name: Build exact neutral target-host bridge payload
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python tools/build_review006_target_host_winding_bridge_evidence.py \
+            --out-dir lookdev-proof/generated \
+            --materials-contract _materials/lookdev/character_review006_neutral_target_host_isolation_001.json \
+            --rigging-neutral evidence/rigging-neutral/review006-rig-neutral-bind-frame-closure.json \
+            --technical-art-head "$(git rev-parse HEAD)" \
+            --uc-head "$(git -C _uc rev-parse HEAD)"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          row=json.loads(Path('lookdev-proof/generated/character_review006_target_host_winding_bridge_payload.json').read_text())
+          assert row['result']=='READY_CHARACTER_REVIEW006_TARGET_HOST_WINDING_BRIDGE_RECEIVER'
+          assert row['neutral_reference']['counts']=={'by_side': {'L': {'triangles': 180, 'vertices': 92}, 'R': {'triangles': 180, 'vertices': 92}}, 'indices': 1080, 'triangles': 360, 'vertices': 184}
+          assert row['bridge_candidate']['source_positions_changed'] is False
+          assert row['bridge_candidate']['source_normals_changed'] is False
+          assert row['bridge_candidate']['uc_product_modified'] is False
+          PY
+
+      - name: Prove helper fails closed on a partially adapted relation
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from axm_character_design.target_host_surface_bridge import OTHER_INDEX_RELATION, classify_index_relation, flatten_faces, reverse_triangle_winding
+          row=json.loads(Path('lookdev-proof/generated/character_review006_target_host_winding_bridge_payload.json').read_text())
+          faces=row['neutral_reference']['owner_faces']
+          candidate=flatten_faces(reverse_triangle_winding(faces))
+          candidate[1],candidate[2]=faces[0][1],faces[0][2]
+          result=classify_index_relation(faces,candidate)
+          assert result['relation']==OTHER_INDEX_RELATION,result
+          assert result['reversed_winding_mismatch_count']==2,result
+          print(json.dumps(result,indent=2,sort_keys=True))
+          PY
+
+      - name: Download pinned Godot 4.7.2
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Observe imported winding and render adapted reference
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/character-review006-target-host-winding-*.png
+          rm -f lookdev-proof/character-review006-target-host-winding-bridge-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script character_review006_target_host_winding_bridge_observe.gd
+
+      - name: Validate exact receiver-local winding bridge
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('lookdev-proof/character-review006-target-host-winding-bridge-runtime-receipt.json')
+          r=json.loads(p.read_text())
+          assert r['state']=='PASS_DIAGNOSTIC',r
+          assert r['result']=='PASS_CHARACTER_REVIEW006_GODOT_GLTF_TO_ARRAYMESH_WINDING_REFERENCE_BRIDGE__HOLD_DEFORMED_DIRECTION_FRAME',r
+          a=r['raw_import_audit']
+          assert a['vertex_count']==184 and a['normal_count']==184 and a['index_count']==1080,a
+          assert a['triangle_count']==360,a
+          assert a['max_position_component_delta']==0.0,a
+          assert a['max_normal_component_delta'] < 0.001,a
+          assert a['owner_order_mismatch_count']==720,a
+          assert a['reversed_winding_mismatch_count']==0,a
+          assert a['exact_reversed_triangles']==360,a
+          assert a['mutated_candidate_mismatch_count']>0,a
+          assert all(r['gates'].values()),r['gates']
+          for context,row in r['comparisons'].items():
+              assert row['imported_to_adapted_position_control']['frame_fraction'] <= 0.0005,(context,row)
+              assert row['imported_to_adapted_shaded']['mean_abs_rgb_channel_delta'] <= 0.002,(context,row)
+              assert row['imported_to_native_shaded']['mean_abs_rgb_channel_delta'] >= 0.05,(context,row)
+              assert row['imported_to_adapted_inverted_negative']['changed_pixels_gt_1lsb']>0,(context,row)
+          assert r['truth_boundary']['universal_godot_rule'] is False,r
+          assert r['truth_boundary']['uc_product_modified'] is False,r
+          assert r['truth_boundary']['deformed_normals_or_tangents'] is False,r
+          print(json.dumps(r,indent=2,sort_keys=True))
+          PY
+
+      - name: Retain exact Technical Art target-host winding evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-target-host-winding-bridge-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            src/axm_character_design/target_host_surface_bridge.py
+            tools/build_review006_target_host_winding_bridge_evidence.py
+            lookdev-proof/project.godot
+            lookdev-proof/character_review006_target_host_winding_bridge_observe.gd
+            lookdev-proof/generated/character_review006_target_host_winding_bridge_payload.json
+            lookdev-proof/generated/character-review006-target-host-winding-target.glb
+            lookdev-proof/generated/exact-technical-art-head.txt
+            lookdev-proof/generated/exact-uc-head.txt
+            lookdev-proof/generated/exact-rigging-neutral-head.txt
+            lookdev-proof/generated/exact-materials-neutral-isolation-head.txt
+            evidence/rigging-neutral/review006-rig-neutral-bind-frame-closure.json
+            lookdev-proof/character-review006-target-host-winding-bridge-runtime-receipt.json
+            lookdev-proof/character-review006-target-host-winding-*.png
+          if-no-files-found: warn
+          retention-days: 60

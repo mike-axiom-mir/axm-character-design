@@ -1,0 +1,109 @@
+name: Runtime Character review006 posed-normal cache budget
+
+on:
+  push:
+    branches: [studio/runtime-character-review006-normal-cache-budget-001]
+    paths:
+      - "src/axm_character_design/review006_runtime_normal_cache.py"
+      - "runtime/character_review006_normal_cache_budget_001.json"
+      - "tools/build_review006_runtime_normal_cache_evidence.py"
+      - "tests/test_review006_runtime_normal_cache.py"
+      - ".github/workflows/runtime-character-review006-normal-cache-budget.yml"
+  pull_request:
+    paths:
+      - "src/axm_character_design/review006_runtime_normal_cache.py"
+      - "runtime/character_review006_normal_cache_budget_001.json"
+      - "tools/build_review006_runtime_normal_cache_evidence.py"
+      - "tests/test_review006_runtime_normal_cache.py"
+      - ".github/workflows/runtime-character-review006-normal-cache-budget.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact Runtime head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact Animation and Materials donors
+        shell: bash
+        run: |
+          set -euo pipefail
+          animation="9519be55581c009fd800d175677d9b50ee6926e6"
+          rigging="fa16c44b1a488d43842470fc9f30c5fb5e98cab6"
+          geometry="8ad006f91ebb9934d5df98702e4410c74a1e68ea"
+          materials="e450684b398f8e5b0e23c4cbf717e3475dd4d5ee"
+          materials_blob="843c0e1866172dd8b6c5ab0f23d69d1e469562f7"
+          git merge-base --is-ancestor "$animation" HEAD
+          git merge-base --is-ancestor "$rigging" HEAD
+          git merge-base --is-ancestor "$geometry" HEAD
+          git fetch --no-tags origin "$materials"
+          test "$(git rev-parse "$materials:tools/build_character_review006_shaded_shoulder_evidence.py")" = "$materials_blob"
+          mkdir -p build/runtime-normal-cache
+          git rev-parse HEAD > build/runtime-normal-cache/exact-runtime-head.txt
+          printf '%s\n' "$animation" > build/runtime-normal-cache/exact-animation-parent-head.txt
+          printf '%s\n' "$materials" > build/runtime-normal-cache/exact-materials-owner-head.txt
+          printf '%s\n' "$materials_blob" > build/runtime-normal-cache/exact-materials-owner-blob.txt
+          git show "$materials:tools/build_character_review006_shaded_shoulder_evidence.py" > build/runtime-normal-cache/materials_normal_donor.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact Runtime before-after evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: |
+          python tools/build_review006_runtime_normal_cache_evidence.py \
+            --materials-donor build/runtime-normal-cache/materials_normal_donor.py \
+            --out build/runtime-normal-cache/summary.json
+
+      - name: Validate retained Runtime result
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('build/runtime-normal-cache/summary.json').read_text())
+          assert data['status'] == 'PASS_CHARACTER_REVIEW006_POSED_NORMAL_STATIC_REGION_CACHE_BUDGET', data
+          receiver = data['receiver']
+          assert receiver['pose_side_evaluations'] == 642, data
+          assert receiver['mismatched_normal_vectors'] == 0, data
+          assert receiver['maximum_component_delta'] == 0.0, data
+          assert receiver['control_normal_stream_sha256'] == receiver['candidate_normal_stream_sha256'], data
+          budget = data['before_after_operation_budget']
+          assert budget['saved_face_crosses'] > 0, data
+          assert budget['saved_vertex_normalizations'] > 0, data
+          assert data['proof_host_python_timing']['median_timing_win'] is True, data
+          assert data['negative_control']['rejected'] is True, data
+          assert data['visual_tradeoff']['new_renderer_measurement'] is False, data
+          print(json.dumps(data, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload retained exact-head Runtime evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-runtime-normal-cache-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/runtime-normal-cache
+          if-no-files-found: error
+          retention-days: 90

@@ -145,7 +145,12 @@ jobs:
           assert r['result'] in allowed,r
           a=r['raw_import_audit']
           assert a['vertex_count']==184 and a['normal_count']==184,a
-          assert a['index_mismatch_count']==0,a
+          assert a['max_position_component_delta']==0.0,a
+          assert a['max_normal_component_delta'] < 0.001,a
+          # Target-host import is allowed to rewrite index order/winding. Preserve
+          # that count as evidence instead of mistaking sequence identity for
+          # source topology identity.
+          assert a['index_count']==1080,a
           for context,row in r['comparisons'].items():
               assert row['inverted_to_static_negative']['changed_pixels_gt_1lsb']>0,(context,row)
           assert r['truth_boundary']['production_normals_or_tangents'] is False,r

@@ -1,0 +1,41 @@
+{
+  "schema": "axm.character-review006-shaded-shoulder-lookdev/v0.1",
+  "review_id": "character-review006-shaded-shoulder-001",
+  "rigging_parent_head": "efa48c344f1b8c9e70c4c5dfdbf4a3031dacd777",
+  "source_sha256": "8e9252ede4d257509e4eacb595f1c234aa100a42dc46a54b7b45550f2619c5e1",
+  "proof_mesh_sha256": "f173b2af9b7bf69ca78bce2ec2daa07a083748590d9ae9e99443962a6d1aa8e7",
+  "geometry_head": "8ad006f91ebb9934d5df98702e4410c74a1e68ea",
+  "topology_digests": {
+    "L": "ea00241192b2af9113a28c4b723e871b440d4d37d32ebe5457c64f94b7650d5d",
+    "R": "aeca6971c25e9786bcdea4f28103f69db642d3c360226b0705752229050b850a"
+  },
+  "rig_profile_digest": "49e59bfd7596619a2a19454ca395276097102047af673fc4219694e777a5a719",
+  "sampled_safe_range_deg": [-40, 36],
+  "review_poses_deg": [-40, 0, 36],
+  "outside_envelope_witness_deg": 37,
+  "normal_modes": {
+    "frozen_neutral_control": "area-weighted smooth vertex normals computed from the exact neutral receiver and reused at the posed vertex positions",
+    "pose_recomputed_candidate": "the same area-weighted smooth-normal method recomputed from each exact posed receiver",
+    "inverted_pose_negative": "pose-recomputed normals multiplied by -1 as an observer-sensitivity negative control"
+  },
+  "material": {
+    "semantic": "neutral_skin_response_review_only",
+    "albedo_srgb": [0.56, 0.43, 0.36],
+    "metallic": 0.0,
+    "roughness": 0.62
+  },
+  "camera_contexts": ["front", "three_quarter", "grazing"],
+  "truth_boundary": {
+    "production_skin_material": false,
+    "production_normals_or_tangents": false,
+    "normal_map_or_texture_authored": false,
+    "anatomical_skin_response": false,
+    "full_body_shading_proven": false,
+    "animation_acceptance": false,
+    "technical_art_transport_acceptance": false,
+    "runtime_acceptance": false,
+    "art_direction_final_acceptance": false,
+    "visual_qa_final_acceptance": false,
+    "canon_or_production_ready": false
+  }
+}

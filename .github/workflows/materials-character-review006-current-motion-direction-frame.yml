@@ -1,0 +1,167 @@
+name: Materials Character review006 current motion direction-frame evidence
+
+on:
+  push:
+    branches: [studio/materials-character-shaded-shoulder-001]
+    paths:
+      - "lookdev/character_review006_current_motion_direction_frame_review_001.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_current_motion_direction_frame_observe.gd"
+      - "tools/build_character_review006_current_motion_direction_frame_evidence.py"
+      - ".github/workflows/materials-character-review006-current-motion-direction-frame.yml"
+  pull_request:
+    paths:
+      - "lookdev/character_review006_current_motion_direction_frame_review_001.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_current_motion_direction_frame_observe.gd"
+      - "tools/build_character_review006_current_motion_direction_frame_evidence.py"
+      - ".github/workflows/materials-character-review006-current-motion-direction-frame.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  current-motion-direction-frame:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: Checkout exact Materials head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact current Character lineage
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 1c021d40d7d606f6fb2a29e69f9353640aa33f60 HEAD
+          git merge-base --is-ancestor 9519be55581c009fd800d175677d9b50ee6926e6 HEAD
+          git merge-base --is-ancestor fa16c44b1a488d43842470fc9f30c5fb5e98cab6 HEAD
+          git merge-base --is-ancestor e450684b398f8e5b0e23c4cbf717e3475dd4d5ee HEAD
+          test "$(git rev-parse 1c021d40d7d606f6fb2a29e69f9353640aa33f60:src/axm_character_design/review006_uc_skin_transport.py)" = "831fd7522ec2a8783862da653d6f12465252a3b2"
+          test "$(git rev-parse e450684b398f8e5b0e23c4cbf717e3475dd4d5ee:tools/build_character_review006_shaded_shoulder_evidence.py)" = "843c0e1866172dd8b6c5ab0f23d69d1e469562f7"
+          mkdir -p lookdev-proof/generated
+          git rev-parse HEAD > lookdev-proof/generated/exact-materials-head.txt
+          printf '%s\n' 1c021d40d7d606f6fb2a29e69f9353640aa33f60 > lookdev-proof/generated/exact-technical-art-head.txt
+          printf '%s\n' 9519be55581c009fd800d175677d9b50ee6926e6 > lookdev-proof/generated/exact-animation-head.txt
+          printf '%s\n' fa16c44b1a488d43842470fc9f30c5fb5e98cab6 > lookdev-proof/generated/exact-rigging-head.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact current-motion direction-frame payload and target GLB
+        env:
+          PYTHONPATH: src
+        run: python tools/build_character_review006_current_motion_direction_frame_evidence.py
+
+      - name: Prove Materials current-motion contract drift fails closed
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys, tempfile
+          from pathlib import Path
+          src=Path('lookdev/character_review006_current_motion_direction_frame_review_001.json')
+          data=json.loads(src.read_text())
+          data['material']['roughness']=0.71
+          temp=Path(tempfile.mkdtemp())
+          bad=temp/'bad.json'
+          bad.write_text(json.dumps(data))
+          proc=subprocess.run(
+              [sys.executable,'tools/build_character_review006_current_motion_direction_frame_evidence.py','--contract',str(bad),'--out-dir',str(temp/'out')],
+              env={**os.environ,'PYTHONPATH':'src'},capture_output=True,text=True)
+          assert proc.returncode != 0,(proc.stdout,proc.stderr)
+          assert 'review material scalar drift' in (proc.stdout+proc.stderr),(proc.stdout,proc.stderr)
+          print('current-motion Materials contract drift rejected as expected')
+          PY
+
+      - name: Download pinned Godot 4.7.2
+        if: matrix.python-version == '3.11'
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        if: matrix.python-version == '3.11'
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Render imported-skin versus pose-following reference in Godot
+        if: matrix.python-version == '3.11'
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/character-review006-current-motion-*.png lookdev-proof/character-review006-current-motion-direction-frame-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script character_review006_current_motion_direction_frame_observe.gd
+
+      - name: Validate bounded current-motion diagnostic
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('lookdev-proof')
+          r=json.loads((root/'character-review006-current-motion-direction-frame-runtime-receipt.json').read_text())
+          assert r['state']=='PASS_DIAGNOSTIC',r
+          allowed={
+              'PASS_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_CLOSER_TO_POSE_RECOMPUTED_REFERENCE',
+              'FAIL_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_CLOSER_TO_FROZEN_NEUTRAL_CONTROL',
+              'INCONCLUSIVE_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_MIXED_RESPONSE',
+              'INCONCLUSIVE_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME__POSITION_CONTROL_MISMATCH',
+          }
+          assert r['result'] in allowed,r
+          assert r['deformed_comparison_count']==6,r
+          for sample in ('80','240'):
+              for context,row in r['comparisons'][sample].items():
+                  assert row['pose_recomputed_to_frozen_neutral']['changed_pixels_gt_1lsb']>0,(sample,context,row)
+          assert r['truth_boundary']['production_normals_or_tangents'] is False,r
+          assert r['truth_boundary']['tangent_space_detail'] is False,r
+          print(json.dumps(r,indent=2))
+          PY
+
+      - name: Retain exact current-motion direction-frame evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-current-motion-direction-frame-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            lookdev/character_review006_current_motion_direction_frame_review_001.json
+            lookdev-proof/character_review006_current_motion_direction_frame_observe.gd
+            lookdev-proof/generated/character_review006_current_motion_direction_frame_payload.json
+            lookdev-proof/generated/character-review006-current-motion-target.glb
+            lookdev-proof/generated/exact-materials-head.txt
+            lookdev-proof/generated/exact-technical-art-head.txt
+            lookdev-proof/generated/exact-animation-head.txt
+            lookdev-proof/generated/exact-rigging-head.txt
+            lookdev-proof/character-review006-current-motion-direction-frame-runtime-receipt.json
+            lookdev-proof/character-review006-current-motion-*.png
+          if-no-files-found: warn
+          retention-days: 60

@@ -1,0 +1,53 @@
+{
+  "schema": "axm.character-review006-neutral-target-host-isolation-lookdev/v0.1",
+  "semantic": "current_exact_character_neutral_target_host_direction_frame_isolation",
+  "technical_art_current_head": "c007c327f2613989581192602338435b67b748d7",
+  "technical_art_producer_blob": "831fd7522ec2a8783862da653d6f12465252a3b2",
+  "technical_art_target_glb_sha256": "76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99",
+  "technical_art_target_glb_bytes": 44032,
+  "rigging_owner_head": "a218b2cf2727482a78db8ab21afcf1bb72637bcc",
+  "materials_static_reference_head": "e450684b398f8e5b0e23c4cbf717e3475dd4d5ee",
+  "materials_current_motion_reference_head": "c2ae66c75abac064b679f1597b7544d058dc3ad1",
+  "neutral_sample": {
+    "sample_index": 160,
+    "expected_time_s": 1.0,
+    "expected_angle_deg": 0.0
+  },
+  "receiver": {
+    "target": "Godot 4.7.2 GL Compatibility direct glTF skin import",
+    "skinned_variant": "actual imported target mesh evaluated through Skeleton3D/Skin at exact neutral sample",
+    "detached_static_variant": "same imported mesh surface POSITION/NORMAL/INDEX arrays copied into a new ArrayMesh with skin channels removed, using the imported mesh global transform",
+    "owner_reference_variant": "exact owner neutral positions and area-weighted indexed smooth normals from the retained Materials reference",
+    "position_controls": "unshaded comparisons between skinned target, detached imported static mesh, and owner reference",
+    "source_geometry_changed": false,
+    "rigging_changed": false,
+    "animation_changed": false,
+    "material_scalars_changed": false,
+    "technical_art_transport_changed": false
+  },
+  "contexts": ["front", "three_quarter", "grazing"],
+  "material": {
+    "semantic": "neutral_skin_response_review_only",
+    "albedo_srgb": [0.56, 0.43, 0.36],
+    "metallic": 0.0,
+    "roughness": 0.62
+  },
+  "classification": {
+    "purpose": "localize the already-observed neutral shaded mismatch without changing source, skinning, animation, material scalars, or transport",
+    "skin_path_localized_when": "unshaded coverage stays aligned, detached imported static shading stays materially closer to owner reference than actual skinned target shading does",
+    "pre_skin_or_transform_hold_when": "detached imported static shading also substantially disagrees with owner reference",
+    "universal_numeric_threshold": false
+  },
+  "truth_boundary": {
+    "diagnostic_only": true,
+    "production_skin_material": false,
+    "production_normals_or_tangents": false,
+    "tangent_space_detail": false,
+    "arbitrary_pose_correctness": false,
+    "target_device_runtime_acceptance": false,
+    "art_direction_final_acceptance": false,
+    "visual_qa_final_acceptance": false,
+    "canon": false,
+    "production_ready": false
+  }
+}

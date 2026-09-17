@@ -108,7 +108,7 @@ func configure_camera(camera: Camera3D, pose_key: String, context: String) -> vo
     camera.fov = 34.0
     camera.near = 0.01
     camera.far = 20.0
-    camera.look_at(center, Vector3.UP)
+    camera.look_at_from_position(camera.position, center, Vector3.UP)
 
 func build_world(pose_key: String, context: String, mode: String) -> SubViewport:
     var viewport := SubViewport.new()

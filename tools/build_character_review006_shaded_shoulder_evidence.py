@@ -75,15 +75,19 @@ def smooth_normals(vertices, faces):
 def normal_delta_summary(neutral, posed):
     angles = []
     changed = 0
+    max_component_delta = 0.0
     for a, b in zip(neutral, posed):
+        component_delta = max(abs(float(a[i]) - float(b[i])) for i in range(3))
+        max_component_delta = max(max_component_delta, component_delta)
         d = max(-1.0, min(1.0, dot(a, b)))
         angle = math.degrees(math.acos(d))
         angles.append(angle)
-        if angle > 1e-7:
+        if component_delta > 1e-12:
             changed += 1
     return {
         "vertex_count": len(angles),
-        "changed_vertex_count_gt_1e_7_deg": changed,
+        "changed_vertex_count_gt_1e_12_component": changed,
+        "maximum_component_delta": max_component_delta,
         "maximum_angle_delta_deg": max(angles) if angles else 0.0,
         "mean_angle_delta_deg": sum(angles) / len(angles) if angles else 0.0,
     }
@@ -157,10 +161,10 @@ def build_payload(contract_path: Path = CONTRACT_PATH):
                 "nonadjacent_intersection_pair_count": int(rows[angle]["nonadjacent_intersection_pair_count"]),
             }
             pose_audit[str(int(angle))] = summary
-        if pose_audit["0"]["changed_vertex_count_gt_1e_7_deg"] != 0:
+        if pose_audit["0"]["maximum_component_delta"] != 0.0:
             raise ValueError(f"{side} neutral normal identity is not exact")
         for angle in (-40, 36):
-            if pose_audit[str(angle)]["changed_vertex_count_gt_1e_7_deg"] <= 0:
+            if pose_audit[str(angle)]["changed_vertex_count_gt_1e_12_component"] <= 0:
                 raise ValueError(f"{side} pose {angle} does not change recomputed normals")
         if int(pose_payload["37"]["nonadjacent_intersection_pair_count"]) <= 0:
             raise ValueError(f"{side} +37 outside-envelope witness was lost")

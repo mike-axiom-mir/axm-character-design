@@ -232,6 +232,18 @@ def _stitch_loops(loop_a, loop_b):
     return faces
 
 
+def _compact_unused_vertices(positions, faces):
+    """Prune topology-edit leftovers without moving any retained position."""
+    used = sorted({vertex for face in faces for vertex in face})
+    if not used:
+        raise ValueError("cannot compact an empty surface")
+    mapping = {old: new for new, old in enumerate(used)}
+    compact_positions = [list(positions[old]) for old in used]
+    compact_faces = [[mapping[vertex] for vertex in face] for face in faces]
+    removed = sorted(set(range(len(positions))) - set(used))
+    return compact_positions, compact_faces, removed
+
+
 def _inspect_vertex_fans(faces):
     """Detect disconnected triangle fans around one indexed vertex (bow-ties)."""
     incident = defaultdict(list)
@@ -568,12 +580,12 @@ def build_opening_repair(side):
         + ["ribcage_to_seam"] * len(repaired_outer)
         + [group for _face, group in downstream]
     )
-    positions = deepcopy(base["positions"])
+    positions, faces, removed_unused_vertices = _compact_unused_vertices(base["positions"], faces)
     local = _inspect_indexed_surface(positions, faces)
     if not local["status"].startswith("PASS_"):
-        raise ValueError("review-006 opening repair failed structural preflight")
-    if len(positions) != 93 or len(faces) != 180:
-        raise ValueError("review-006 opening repair budget drift")
+        raise ValueError(f"review-006 opening repair failed structural preflight: {local}")
+    if len(positions) != 92 or len(faces) != 180 or len(removed_unused_vertices) != 1:
+        raise ValueError("review-006 opening repair compacted budget drift")
     return {
         "stage": "opening_repair",
         "side": side,
@@ -588,6 +600,11 @@ def build_opening_repair(side):
             "extra_removed_ribcage_group_face_indices": list(_EXTRA_RIBCAGE_FACE_INDICES[side]),
             "expanded_hole_phase": _EXPANDED_HOLE_PHASE[side],
             "positions_moved": False,
+            "unused_vertex_prune": {
+                "removed_original_vertex_indices": removed_unused_vertices,
+                "removed_count": len(removed_unused_vertices),
+                "policy": "PRUNE_TOPOLOGY_EDIT_LEFTOVER_BEFORE_MANIFOLD_CLAIM",
+            },
         },
     }
 
@@ -859,6 +876,7 @@ def audit_review006_geometry_rebind():
             "all_four_patterns_reconstructed_from_review006": "PASS",
             "all_four_patterns_closed_oriented_single_component": "PASS",
             "all_four_patterns_vertex_fan_manifold_candidate": "PASS",
+            "opening_and_successor_unused_vertex_prune": "PASS_ONE_DERIVED_LEFTOVER_PER_SIDE_REMOVED",
             "all_four_patterns_bilateral_position_mirror": "PASS",
             "neutral_nonadjacent_self_intersection_observed": "PASS",
             "continuous_deformation": "NOT_EVALUATED",
@@ -886,6 +904,7 @@ def audit_review006_geometry_rebind():
         "truth_boundary": [
             "Review-006 is a selected review input, not an adopted CANON source successor.",
             "The four topology stages reuse historical Character-local construction patterns only; every stage is rebuilt from the exact review-006 source and remeasured.",
+            "The expanded-opening topology leaves one now-unreferenced derived ribcage vertex per side; Geometry prunes that index-only leftover before claiming manifold-candidate structure, without moving any retained position.",
             "Neutral nonadjacent-triangle intersection evidence is static finite evidence; it is not continuous deformation, adjacent-face fold/contact, collision, or gameplay proof.",
             "The proof mesh remains separate source-form evidence; this connected receiver is derived Geometry evidence and does not silently replace Organic ownership.",
             "No anatomy, final normals/tangents/UVs, material quality, Rigging/Animation acceptance, runtime performance, CANON, production readiness, game readiness, or Geometry mastery is claimed.",

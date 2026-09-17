@@ -267,9 +267,9 @@ func run_observer() -> void:
     var scale := candidate_skeleton.get_bone_pose_scale(negative_bone)
     candidate_skeleton.set_bone_pose_scale(negative_bone, scale + Vector3(0.01, 0.0, 0.0))
     var negative := skeleton_delta(control_skeleton, candidate_skeleton)
-    var negative_visible := negative.get("state") == "PASS" and float(negative["maximum_scale_component_delta"]) >= 0.009
+    var negative_visible: bool = negative.get("state") == "PASS" and float(negative["maximum_scale_component_delta"]) >= 0.009
 
-    var exact_under_bound := (
+    var exact_under_bound: bool = (
         float(animation["maximum_key_value_component_delta"]) <= TOLERANCE
         and float(animation["maximum_key_time_delta_s"]) <= TOLERANCE
         and float(mesh["maximum_position_component_delta"]) <= TOLERANCE

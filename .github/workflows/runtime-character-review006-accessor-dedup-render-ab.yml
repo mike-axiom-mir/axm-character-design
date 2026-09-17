@@ -1,0 +1,228 @@
+name: Runtime Character review006 accessor-dedup frozen-baseline render A/B
+
+on:
+  push:
+    branches: [studio/runtime-character-review006-scale-accessor-dedup-001]
+    paths:
+      - "lookdev-proof/runtime_character_review006_accessor_dedup_render_ab_observe.gd"
+      - ".github/workflows/runtime-character-review006-accessor-dedup-render-ab.yml"
+      - "tools/build_runtime_review006_scale_accessor_dedup.py"
+      - "tools/build_runtime_review006_scale_accessor_dedup_v2.py"
+  pull_request:
+    paths:
+      - "lookdev-proof/runtime_character_review006_accessor_dedup_render_ab_observe.gd"
+      - ".github/workflows/runtime-character-review006-accessor-dedup-render-ab.yml"
+      - "tools/build_runtime_review006_scale_accessor_dedup.py"
+      - "tools/build_runtime_review006_scale_accessor_dedup_v2.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-frozen-baseline-render-ab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    steps:
+      - name: Checkout exact Runtime lane
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact donor, Art baseline and Technical Art adoption identities
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor d95caae1df766b2e08bca50241d732ecb2208aee HEAD
+          git fetch --no-tags origin 57da8ac7456c4b90bd79efa9292c969a4ecb01ac
+          git fetch --no-tags origin a8e2759e72e15a63e50f2cddecf1b407bbfd4224
+          test "$(git rev-parse d95caae1df766b2e08bca50241d732ecb2208aee:tools/build_runtime_review006_scale_accessor_dedup_v2.py)" = "861a427eb96c6e38f91889b482c44de0423edfb3"
+          test "$(git rev-parse 57da8ac7456c4b90bd79efa9292c969a4ecb01ac:lookdev/character_review006_current_target_shaded_motion_reference_003.json)" = "5eb95bead9847b9df50ba08c64eb2390365f1ae0"
+          git show a8e2759e72e15a63e50f2cddecf1b407bbfd4224:src/axm_character_design/review006_exact_accessor_sharing.py >/dev/null
+          mkdir -p lookdev-proof/generated/runtime-accessor-dedup-render-ab
+          git rev-parse HEAD > lookdev-proof/generated/runtime-accessor-dedup-render-ab/exact-runtime-head.txt
+          printf '%s\n' 57da8ac7456c4b90bd79efa9292c969a4ecb01ac > lookdev-proof/generated/runtime-accessor-dedup-render-ab/exact-materials-baseline-head.txt
+          printf '%s\n' a8e2759e72e15a63e50f2cddecf1b407bbfd4224 > lookdev-proof/generated/runtime-accessor-dedup-render-ab/exact-technical-art-adoption-head.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Checkout exact current UC receiver used by Runtime donor
+        uses: actions/checkout@v4
+        with:
+          repository: mike-axiom-mir/axm-universal-creation
+          ref: fed35116c1aabe54789f1197b7b2423b3b516169
+          path: _uc
+          fetch-depth: 0
+
+      - name: Reproduce exact Runtime control and candidate
+        env:
+          PYTHONPATH: src:_uc/src:tools
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/runtime-accessor-dedup
+          python tools/build_runtime_review006_scale_accessor_dedup_v2.py \
+            --out /tmp/runtime-accessor-dedup \
+            --uc-root _uc
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('/tmp/runtime-accessor-dedup')
+          r=json.loads((root/'result.json').read_text())
+          assert r['control']['glb_bytes']==44032,r
+          assert r['control']['glb_sha256']=='76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99',r
+          assert r['candidate']['glb_bytes']==40064,r
+          assert r['candidate']['glb_sha256']=='2786a05578adbd1bacccd2c47305000bf7ead81a65580da896d46d9dd0666bcc',r
+          assert r['before_after']['file_bytes_saved']==3968,r
+          assert r['uc_receiver_equivalence']['maximum_position_delta_m']==0.0,r
+          assert r['uc_receiver_equivalence']['maximum_skin_palette_component_delta']==0.0,r
+          print(json.dumps(r,indent=2,sort_keys=True))
+          PY
+
+      - name: Reproduce exact frozen Materials Direction-030 baseline payload
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/materials-baseline /tmp/materials-baseline-out
+          git worktree add --detach /tmp/materials-baseline 57da8ac7456c4b90bd79efa9292c969a4ecb01ac
+          PYTHONPATH=/tmp/materials-baseline/src \
+            python /tmp/materials-baseline/tools/build_character_review006_current_target_shaded_motion_reference_evidence.py \
+              --contract /tmp/materials-baseline/lookdev/character_review006_current_target_shaded_motion_reference_003.json \
+              --out-dir /tmp/materials-baseline-out
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          m=Path('/tmp/materials-baseline-out')
+          r=Path('/tmp/runtime-accessor-dedup')
+          payload=json.loads((m/'character_review006_current_target_shaded_motion_reference_payload.json').read_text())
+          control=(m/'character-review006-current-target-shaded-motion-reference-target.glb').read_bytes()
+          donor=(r/'review006-control-duplicate-release-scale.glb').read_bytes()
+          assert control==donor
+          assert len(control)==44032
+          assert hashlib.sha256(control).hexdigest()=='76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99'
+          assert payload['exact_identity']['target_glb_sha256']=='76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99'
+          assert set(payload['samples'])=={'80','160','240'}
+          print(json.dumps({'baseline_payload_sha256':payload['payload_sha256'],'control_bytes':len(control)},indent=2))
+          PY
+
+      - name: Assemble exact render A/B receiver without changing product code
+        run: |
+          set -euo pipefail
+          root=lookdev-proof/generated/runtime-accessor-dedup-render-ab
+          cp /tmp/materials-baseline-out/character_review006_current_target_shaded_motion_reference_payload.json "$root/materials-baseline-payload.json"
+          cp /tmp/runtime-accessor-dedup/result.json "$root/runtime-result.json"
+          cp /tmp/runtime-accessor-dedup/review006-control-duplicate-release-scale.glb "$root/review006-control.glb"
+          cp /tmp/runtime-accessor-dedup/review006-candidate-shared-release-scale.glb "$root/review006-candidate.glb"
+          cp /tmp/materials-baseline/lookdev-proof/project.godot lookdev-proof/project.godot
+          sha256sum "$root/review006-control.glb" "$root/review006-candidate.glb" > "$root/glb-sha256.txt"
+
+      - name: Download pinned Godot 4.7.2
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Prove exact candidate identity drift fails closed
+        run: |
+          set -euo pipefail
+          root=lookdev-proof/generated/runtime-accessor-dedup-render-ab
+          cp "$root/runtime-result.json" "$root/runtime-result.good.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('lookdev-proof/generated/runtime-accessor-dedup-render-ab/runtime-result.json')
+          r=json.loads(p.read_text())
+          r['candidate']['glb_sha256']='0'*64
+          p.write_text(json.dumps(r,indent=2,sort_keys=True)+'\n')
+          PY
+          set +e
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script runtime_character_review006_accessor_dedup_render_ab_observe.gd
+          code=$?
+          set -e
+          test "$code" -ne 0
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('lookdev-proof/runtime-character-review006-accessor-dedup-render-ab-receipt.json')
+          r=json.loads(p.read_text())
+          assert r['state']=='FAIL_INFRASTRUCTURE',r
+          assert 'candidate identity drift' in r['failure'],r
+          print(json.dumps(r,indent=2,sort_keys=True))
+          PY
+          mv "$root/runtime-result.good.json" "$root/runtime-result.json"
+          rm -f lookdev-proof/runtime-character-review006-accessor-dedup-render-ab-receipt.json
+
+      - name: Render exact control/candidate under frozen Direction-030 baseline
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/runtime-character-review006-accessor-dedup-render-ab-*.png
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script runtime_character_review006_accessor_dedup_render_ab_observe.gd
+
+      - name: Validate retained render evidence without auto-accepting Art
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('lookdev-proof/runtime-character-review006-accessor-dedup-render-ab-receipt.json')
+          r=json.loads(p.read_text())
+          allowed={
+              'PASS_CHARACTER_REVIEW006_ACCESSOR_DEDUP_EXACT_FROZEN_BASELINE_RENDER_BYTE_IDENTITY__HOLD_CONTINUOUS_FULL_BODY_TANGENT_TARGET_DEVICE_ADOPTION',
+              'MEASURED_CHARACTER_REVIEW006_ACCESSOR_DEDUP_SHADED_RENDER_DELTA__HOLD_ART_QA',
+              'HOLD_CHARACTER_REVIEW006_ACCESSOR_DEDUP_RENDER_AB__UNSHADED_RECEIVER_DELTA',
+              'HOLD_CHARACTER_REVIEW006_ACCESSOR_DEDUP_RENDER_AB__OBSERVER_LIGHTING_SENSITIVITY_NOT_PROVEN',
+          }
+          assert r['state']=='PASS_EVIDENCE',r
+          assert r['result'] in allowed,r
+          assert r['identity']['control_glb_bytes']==44032,r
+          assert r['identity']['candidate_glb_bytes']==40064,r
+          assert r['summary']['pair_count']==9,r
+          assert r['summary']['observer_lighting_sensitive_pair_count']==9,r
+          assert r['truth_boundary']['art_direction_final_acceptance'] is False,r
+          assert r['truth_boundary']['visual_qa_final_acceptance'] is False,r
+          assert r['truth_boundary']['target_device_cpu_gpu_fps_vram'] is False,r
+          print(json.dumps(r,indent=2,sort_keys=True))
+          PY
+
+      - name: Retain exact Runtime render A/B evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-runtime-accessor-dedup-render-ab-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            lookdev-proof/generated/runtime-accessor-dedup-render-ab/
+            lookdev-proof/runtime-character-review006-accessor-dedup-render-ab-receipt.json
+            lookdev-proof/runtime-character-review006-accessor-dedup-render-ab-*.png
+            lookdev-proof/runtime_character_review006_accessor_dedup_render_ab_observe.gd
+          if-no-files-found: warn
+          retention-days: 60

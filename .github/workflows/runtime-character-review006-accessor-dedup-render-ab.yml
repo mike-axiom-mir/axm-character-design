@@ -37,7 +37,7 @@ jobs:
           git fetch --no-tags origin 57da8ac7456c4b90bd79efa9292c969a4ecb01ac
           git fetch --no-tags origin a8e2759e72e15a63e50f2cddecf1b407bbfd4224
           test "$(git rev-parse d95caae1df766b2e08bca50241d732ecb2208aee:tools/build_runtime_review006_scale_accessor_dedup_v2.py)" = "861a427eb96c6e38f91889b482c44de0423edfb3"
-          test "$(git rev-parse 57da8ac7456c4b90bd79efa9292c969a4ecb01ac:lookdev/character_review006_current_target_shaded_motion_reference_003.json)" = "5eb95bead9847b9df50ba08c64eb2390365f1ae0"
+          test "$(git rev-parse 57da8ac7456c4b90bd79efa9292c969a4ecb01ac:lookdev/character_review006_current_target_shaded_motion_reference_003.json)" = "5eb95be739a30ef8e361eb5eae40ccb592df073d"
           git show a8e2759e72e15a63e50f2cddecf1b407bbfd4224:src/axm_character_design/review006_exact_accessor_sharing.py >/dev/null
           mkdir -p lookdev-proof/generated/runtime-accessor-dedup-render-ab
           git rev-parse HEAD > lookdev-proof/generated/runtime-accessor-dedup-render-ab/exact-runtime-head.txt
@@ -73,7 +73,7 @@ jobs:
             --out /tmp/runtime-accessor-dedup \
             --uc-root _uc
           python - <<'PY'
-          import hashlib,json
+          import json
           from pathlib import Path
           root=Path('/tmp/runtime-accessor-dedup')
           r=json.loads((root/'result.json').read_text())

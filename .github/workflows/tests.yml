@@ -90,6 +90,11 @@ jobs:
         env:
           PYTHONPATH: src
         run: python tools/build_shoulder_pose_elbow_chain_context.py --out evidence/character-neutral-a-001
+      - name: Build exact shoulder review decision packet
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_review_decision_packet.py --out evidence/character-neutral-a-001
       - name: Bind evidence to exact checked-out head
         if: matrix.python-version == '3.11'
         run: git rev-parse HEAD > evidence/character-neutral-a-001/exact-head.txt

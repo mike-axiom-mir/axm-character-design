@@ -6,15 +6,15 @@ current Rigging owner implementation:
     D(theta, w) = (1 - w) I + w R(theta)
 
 where ``w`` is the existing angle-conditioned child weight and ``R`` is the
-existing shoulder rotation.  It exposes an owner-consistent tangent/normal frame
+existing shoulder rotation. It exposes an owner-consistent tangent/normal frame
 reference without changing source geometry, topology, joints, weights or the
 historical profile.
 
-The reference is intentionally narrower than a production shading policy.  It
+The reference is intentionally narrower than a production shading policy. It
 proves the rig-local deformation gradient remains invertible and handedness
 preserving over the historical -40..+40 degree verification envelope, and that
 its affine prediction reproduces the actual owner pose implementation at
-representative poses.  It does NOT prove collision freedom, choose final vertex
+representative poses. It does NOT prove collision freedom, choose final vertex
 normals/tangents, grant Animation/Technical-Art/Runtime acceptance, or override
 the retained +36.55 clear / +36.60 failing structural boundary.
 """
@@ -125,12 +125,12 @@ def _inverse(matrix):
     a, b, c = matrix[0]
     d, e, f = matrix[1]
     g, h, i = matrix[2]
-    cofactor = (
-        (e * i - f * h, -(d * i - f * g), d * h - e * g),
-        (-(b * i - c * h), a * i - c * g, -(a * h - b * g)),
-        (b * f - c * e, -(a * f - c * d), a * e - b * d),
+    adjugate = (
+        (e * i - f * h, c * h - b * i, b * f - c * e),
+        (f * g - d * i, a * i - c * g, c * d - a * f),
+        (d * h - e * g, b * g - a * h, a * e - b * d),
     )
-    return _matrix_scale(cofactor, 1.0 / determinant)
+    return _matrix_scale(adjugate, 1.0 / determinant)
 
 
 def _identity():
@@ -231,7 +231,7 @@ def _frame_metrics(axis, angle_deg, child_weight):
 
 def _proximal_continuous_determinant_lower_bound():
     # For D=(1-w)I+wR around one axis, det(D) is
-    # 1 - 2*w*(1-w)*(1-cos(theta)).  Over |theta|<=40 deg and
+    # 1 - 2*w*(1-w)*(1-cos(theta)). Over |theta|<=40 deg and
     # 0<=w<=MAX_RELEASE_WEIGHT<=0.1, both factors are bounded above by
     # their interval endpoints, yielding a conservative continuous lower bound.
     theta_bound = math.radians(40.0)

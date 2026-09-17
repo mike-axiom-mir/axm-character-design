@@ -159,7 +159,7 @@ jobs:
           receipt = json.loads((root / "character-review006-target-engine-direction-frame-hypothesis-runtime-receipt.json").read_text())
           assert receipt["state"] == "PASS_DIAGNOSTIC", receipt
           allowed = {
-              "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENT_WITH_RIGGING_LINEAR_GRADIENT_HYPOTHESIS",
+              "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENTLY_NEARER_RIGGING_LINEAR_GRADIENT_REFERENCE__INVERSE_TRANSPOSE_SEPARATION_SUB_LSB",
               "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENT_WITH_RIGGING_INVERSE_TRANSPOSE_HYPOTHESIS",
               "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENT_WITH_POSE_RECOMPUTED_HYPOTHESIS",
               "FAIL_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENT_WITH_FROZEN_NEUTRAL_CONTROL",
@@ -170,6 +170,10 @@ jobs:
           }
           assert receipt["result"] in allowed, receipt
           assert receipt["deformed_comparison_count"] == 6, receipt
+          if receipt["result"] == "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENTLY_NEARER_RIGGING_LINEAR_GRADIENT_REFERENCE__INVERSE_TRANSPOSE_SEPARATION_SUB_LSB":
+              assert receipt["linear_beats_inverse_count"] == 6, receipt
+              assert receipt["minimum_linear_to_nonrig_separation_ratio"] >= 100.0, receipt
+              assert receipt["maximum_linear_mean_abs_rgb_channel_delta"] <= 0.002, receipt
           assert receipt["truth_boundary"]["uc_product_modified"] is False, receipt
           assert receipt["truth_boundary"]["godot_skinning_implementation_claim"] is False, receipt
           assert receipt["truth_boundary"]["production_normals_or_tangents"] is False, receipt

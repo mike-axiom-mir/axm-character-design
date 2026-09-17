@@ -1,0 +1,69 @@
+{
+  "schema": "axm.character-review006-current-target-shaded-motion-reference-lookdev/v0.3",
+  "technical_art_direction_frame_head": "36744749a592e067a119f3349a499d65f25af134",
+  "technical_art_direction_frame_artifact_id": 10500419469,
+  "technical_art_direction_frame_artifact_sha256": "2c8741ceb1e7bdb0866ad3505dc1ec37ea26f59c420980f480a4a48011e7374a",
+  "technical_art_expected_result": "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENTLY_NEARER_RIGGING_LINEAR_GRADIENT_REFERENCE__INVERSE_TRANSPOSE_SEPARATION_SUB_LSB",
+  "technical_art_rigging_head": "4efa5772ee63f62d7a7e5b4ef6688550034b4659",
+  "technical_art_uc_head": "41b4d9134e4d2e5f4fadaada2a1d6a56eed92ab0",
+  "target_glb_sha256": "76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99",
+  "target_glb_bytes": 44032,
+  "samples": [
+    {"sample_index": 80, "expected_time_s": 0.5, "expected_angle_deg": -30.0},
+    {"sample_index": 160, "expected_time_s": 1.0, "expected_angle_deg": 0.0},
+    {"sample_index": 240, "expected_time_s": 1.5, "expected_angle_deg": 30.0}
+  ],
+  "contexts": ["front", "three_quarter", "grazing"],
+  "material": {
+    "semantic": "neutral_skin_response_review_only",
+    "albedo_srgb": [0.56, 0.43, 0.36],
+    "metallic": 0.0,
+    "roughness": 0.62
+  },
+  "renderer": {
+    "target": "Godot 4.7.2-stable / GL Compatibility / retained X11 llvmpipe workflow",
+    "frame_size": [900, 700],
+    "camera_policy": "same owner-position-derived front / three-quarter / grazing framing as Materials host-equivalent review",
+    "lighting_policy": "same two-directional-light + ambient environment as Materials host-equivalent review"
+  },
+  "receiver": {
+    "purpose": "ordinary shaded current-target motion review after Technical Art closed the direction-frame diagnostic",
+    "actual_imported_target_is_visual_reference": true,
+    "pose_recomputed_is_desired_target": false,
+    "frozen_neutral_is_desired_target": false,
+    "linear_gradient_is_renderer_implementation_claim": false,
+    "inverse_transpose_is_renderer_implementation_claim": false,
+    "source_geometry_changed": false,
+    "source_topology_membership_changed": false,
+    "source_normals_changed": false,
+    "rigging_changed": false,
+    "animation_changed": false,
+    "technical_art_transport_changed": false,
+    "material_scalars_changed": false,
+    "camera_policy_changed": false,
+    "lighting_policy_changed": false,
+    "uc_product_modified": false
+  },
+  "classification": {
+    "minimum_foreground_pixels_per_frame": 1000,
+    "minimum_shaded_vs_unshaded_changed_pixels_gt_1lsb": 100,
+    "minimum_motion_changed_pixels_gt_1lsb": 100,
+    "technical_art_direction_frame_receipt_required": true
+  },
+  "truth_boundary": {
+    "lookdev_reference_pack_only": true,
+    "full_body_review_available": false,
+    "full_body_review_reason": "the exact pinned target GLB is the bounded review006 shoulder-chain receiver, not a full-body Character asset",
+    "production_skin_material": false,
+    "production_normals_or_tangents": false,
+    "tangent_space_normal_map_correctness": false,
+    "subsurface_or_transmission": false,
+    "arbitrary_pose_or_camera_correctness": false,
+    "runtime_or_target_device_acceptance": false,
+    "final_art_direction_acceptance": false,
+    "independent_visual_qa_acceptance": false,
+    "source_adoption_or_canon": false,
+    "production_readiness": false,
+    "materials_mastery": false
+  }
+}

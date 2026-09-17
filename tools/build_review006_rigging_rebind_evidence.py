@@ -25,6 +25,9 @@ from axm_character_design.review006_shoulder_safe_envelope import (
 from axm_character_design.review006_shoulder_subdegree_boundary import (
     build_review006_positive_subdegree_boundary_evidence,
 )
+from axm_character_design.review006_shoulder_vertex_only_dense_margin import (
+    build_review006_dense_vertex_only_neighbor_cone_margin_evidence,
+)
 from axm_character_design.review006_shoulder_vertex_only_neighbor_cone_margin import (
     build_review006_sampled_vertex_only_neighbor_cone_margin_evidence,
 )
@@ -36,7 +39,7 @@ def main():
             "Build exact review-006 Rigging structural, sub-degree boundary, "
             "deformation-gradient frame, neutral bind-frame, continuous "
             "nonadjacent-clearance, sampled/continuous edge-adjacent fold, and "
-            "sampled vertex-only neighbour cone evidence."
+            "sampled + dense vertex-only neighbour cone evidence."
         )
     )
     parser.add_argument("out_dir")
@@ -50,6 +53,7 @@ def main():
     adjacent = build_review006_sampled_edge_adjacent_fold_margin_evidence(args.out_dir)
     continuous_edge = build_review006_continuous_edge_adjacent_fold_evidence(args.out_dir)
     vertex_only = build_review006_sampled_vertex_only_neighbor_cone_margin_evidence(args.out_dir)
+    dense_vertex_only = build_review006_dense_vertex_only_neighbor_cone_margin_evidence(args.out_dir)
     print(json.dumps({
         "status": safe["status"],
         "safe_envelope_deg": safe["safe_envelope"]["range_deg"],
@@ -107,6 +111,12 @@ def main():
         "vertex_only_left_min_cone_separation_rad": vertex_only["sampled_vertex_only_neighbor_guard"]["sides"]["L"]["minimum_sampled_cone_separation_rad"],
         "vertex_only_right_min_cone_separation_rad": vertex_only["sampled_vertex_only_neighbor_guard"]["sides"]["R"]["minimum_sampled_cone_separation_rad"],
         "vertex_only_negative_control_rejected": vertex_only["negative_control"]["rejected"],
+        "dense_vertex_only_status": dense_vertex_only["status"],
+        "dense_vertex_only_step_deg": dense_vertex_only["dense_sampled_vertex_only_guard"]["step_deg"],
+        "dense_vertex_only_sample_count_per_side": dense_vertex_only["dense_sampled_vertex_only_guard"]["sample_count_per_side"],
+        "dense_vertex_only_left_min_cone_separation_rad": dense_vertex_only["dense_sampled_vertex_only_guard"]["sides"]["L"]["minimum_sampled_cone_separation_rad"],
+        "dense_vertex_only_right_min_cone_separation_rad": dense_vertex_only["dense_sampled_vertex_only_guard"]["sides"]["R"]["minimum_sampled_cone_separation_rad"],
+        "dense_vertex_only_failure_pose_uncertified_both_sides": dense_vertex_only["retained_boundary"]["vertex_only_cone_predicate_uncertified_at_failure_pose_both_sides"],
     }, sort_keys=True))
 
 

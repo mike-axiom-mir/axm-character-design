@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "tools/build_runtime_review006_scale_accessor_dedup.py"
+      - "tools/build_runtime_review006_scale_accessor_dedup_v2.py"
       - ".github/workflows/runtime-character-review006-scale-accessor-dedup.yml"
   workflow_dispatch:
 
@@ -57,11 +58,11 @@ jobs:
           python-version: "3.11"
       - name: Build exact import-budget and receiver evidence
         env:
-          PYTHONPATH: src:_uc/src
+          PYTHONPATH: src:_uc/src:tools
         run: |
           set -euo pipefail
           rm -rf evidence/runtime-character-review006-scale-accessor-dedup
-          python tools/build_runtime_review006_scale_accessor_dedup.py \
+          python tools/build_runtime_review006_scale_accessor_dedup_v2.py \
             --out evidence/runtime-character-review006-scale-accessor-dedup \
             --uc-root _uc
           python - <<'PY'
@@ -72,6 +73,7 @@ jobs:
           assert row["control"]["glb_bytes"] == 44032
           assert row["before_after"]["binary_bytes_saved"] == 3852
           assert row["before_after"]["file_bytes_saved"] > 3852
+          assert row["uc_receiver_equivalence"]["semantic_shape_equal"] is True
           assert row["uc_receiver_equivalence"]["maximum_position_delta_m"] == 0.0
           assert row["uc_receiver_equivalence"]["maximum_skin_palette_component_delta"] == 0.0
           assert row["uc_receiver_equivalence"]["changed_position_samples"] == 0

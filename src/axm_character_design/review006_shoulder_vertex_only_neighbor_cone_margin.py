@@ -1,22 +1,22 @@
 """Sampled vertex-only neighbour contact evidence for review-006 shoulders.
 
-The existing review-006 Rigging chain already proves continuous nonadjacent
-triangle clearance and continuous same-ray edge-adjacent fold clearance through
-+36.55 degrees. Those observers intentionally leave face pairs that share only
-one indexed vertex outside their claims.
+The retained Rigging chain proves continuous nonadjacent-triangle clearance and
+continuous same-ray edge-adjacent fold clearance through +36.55 degrees. Those
+observers intentionally exclude triangle pairs that share only one indexed
+vertex.
 
 For two triangles sharing exactly one vertex, any second common point would
-produce a ray from that shared vertex that lies in both triangles' positive
-angular cones. Each triangle cone is represented by the minor spherical arc
-between its two outgoing edge directions. A strictly positive angular
-separation between those two arcs is therefore a conservative sufficient
-certificate that the triangles meet only at their intended shared vertex at the
-sampled pose.
+produce a ray from that vertex lying in both triangles' positive angular cones.
+Each triangle cone is the minor spherical arc between its two outgoing edge
+directions. Strict positive separation between those arcs is therefore a
+conservative sufficient certificate that the pair shares only the intended
+vertex at that sampled pose.
 
-This module checks that predicate on the exact unchanged owner rig at the same
-0.05-degree sampling used by the retained upper-bound contact probe. It does
-not prove continuity between those samples and does not grant Animation,
-Technical-Art, Runtime or visual acceptance.
+This bounded observer samples the full owner range on a 0.25-degree grid and
+also probes the exact retained +36.55-degree safe endpoint. It preserves the
+exact source, topology, joints, weights and pose semantics. It does not prove
+continuity between samples or grant Animation, Technical-Art, Runtime or visual
+acceptance.
 """
 from __future__ import annotations
 
@@ -35,11 +35,7 @@ from .review006_shoulder_continuous_edge_adjacent_fold import (
     STATUS as CONTINUOUS_EDGE_STATUS,
     audit_review006_continuous_edge_adjacent_fold_margin,
 )
-from .review006_shoulder_edge_adjacent_fold_margin import (
-    SAMPLE_SCALE,
-    SAMPLE_STEP_DEG,
-    _adjacency_rows,
-)
+from .review006_shoulder_edge_adjacent_fold_margin import _adjacency_rows
 from .review006_shoulder_rigging_rebind import (
     EXPECTED_PROFILE_DIGEST,
     EXPECTED_REVIEW006_MESH_DIGEST,
@@ -54,13 +50,15 @@ from .review006_shoulder_rigging_rebind import (
     release_weight,
 )
 
-SCHEMA = "axm.character-review006-sampled-vertex-only-neighbor-cone-margin/v0.1"
+SCHEMA = "axm.character-review006-sampled-vertex-only-neighbor-cone-margin/v0.2"
 STATUS = (
     "PASS_CHARACTER_REVIEW006_SAMPLED_VERTEX_ONLY_NEIGHBOR_CONE_MARGIN_"
     "MINUS40_TO_PLUS3655__CONTINUOUS_VERTEX_ONLY_HELD"
 )
 FAIL_STATUS = "FAIL_CHARACTER_REVIEW006_SAMPLED_VERTEX_ONLY_NEIGHBOR_CONE_MARGIN"
 GEOMETRY_EVIDENCE_HEAD = "3519289f99c15ee3b7298b7bd625cf81e32b3c98"
+SAMPLE_STEP_DEG = 0.25
+SAMPLE_SCALE = 4
 VERTEX_CONTACT_EPSILON_RAD = 1e-9
 ARC_MEMBERSHIP_TOLERANCE_RAD = 1e-9
 DIRECTION_EPSILON = 1e-14
@@ -68,19 +66,19 @@ REPRESENTATIVE_ANGLES_DEG = (-40.0, -20.0, 0.0, 20.0, 30.0, 36.55, 36.60)
 
 
 def _sub(a, b):
-    return tuple(float(a[index]) - float(b[index]) for index in range(3))
+    return tuple(float(a[i]) - float(b[i]) for i in range(3))
 
 
 def _add(a, b):
-    return tuple(float(a[index]) + float(b[index]) for index in range(3))
+    return tuple(float(a[i]) + float(b[i]) for i in range(3))
 
 
 def _mul(a, scalar):
-    return tuple(float(a[index]) * float(scalar) for index in range(3))
+    return tuple(float(a[i]) * float(scalar) for i in range(3))
 
 
 def _dot(a, b):
-    return sum(float(a[index]) * float(b[index]) for index in range(3))
+    return sum(float(a[i]) * float(b[i]) for i in range(3))
 
 
 def _cross(a, b):
@@ -102,16 +100,20 @@ def _unit(value):
     return _mul(value, 1.0 / magnitude)
 
 
-def _angle(a, b):
-    a_u = _unit(a)
-    b_u = _unit(b)
-    return math.atan2(_length(_cross(a_u, b_u)), max(-1.0, min(1.0, _dot(a_u, b_u))))
+def _angle_unit(a, b):
+    return math.atan2(
+        _length(_cross(a, b)),
+        max(-1.0, min(1.0, _dot(a, b))),
+    )
 
 
 def _sample_angles():
     start_tick = int(round(SAFE_START_DEG * SAMPLE_SCALE))
-    end_tick = int(round(SAFE_END_DEG * SAMPLE_SCALE))
-    return tuple(tick / SAMPLE_SCALE for tick in range(start_tick, end_tick + 1))
+    last_regular_tick = int(math.floor(SAFE_END_DEG * SAMPLE_SCALE + 1e-12))
+    angles = [tick / SAMPLE_SCALE for tick in range(start_tick, last_regular_tick + 1)]
+    if not angles or abs(angles[-1] - SAFE_END_DEG) > 1e-12:
+        angles.append(float(SAFE_END_DEG))
+    return tuple(angles)
 
 
 def _vertex_only_rows(faces):
@@ -128,94 +130,96 @@ def _vertex_only_rows(faces):
             left_other = [value for value in left_face if value != shared_vertex]
             right_other = [value for value in right_face if value != shared_vertex]
             if len(left_other) != 2 or len(right_other) != 2:
-                raise ValueError("review-006 vertex-only neighbour identity is malformed")
+                raise ValueError("review-006 vertex-only neighbour identity malformed")
             rows.append({
                 "triangle_pair": [left, right],
                 "shared_vertex": shared_vertex,
                 "left_other_vertices": left_other,
                 "right_other_vertices": right_other,
             })
-    rows.sort(key=lambda row: (row["triangle_pair"][0], row["triangle_pair"][1]))
+    rows.sort(key=lambda row: tuple(row["triangle_pair"]))
     return tuple(rows)
 
 
-def _on_minor_arc(point, start, end):
-    total = _angle(start, end)
-    split = _angle(start, point) + _angle(point, end)
+def _on_minor_arc_unit(point, start, end):
+    total = _angle_unit(start, end)
+    split = _angle_unit(start, point) + _angle_unit(point, end)
     return split <= total + ARC_MEMBERSHIP_TOLERANCE_RAD
 
 
-def _point_to_minor_arc_distance(point, start, end):
-    point = _unit(point)
-    start = _unit(start)
-    end = _unit(end)
+def _point_to_minor_arc_distance_unit(point, start, end):
     normal = _cross(start, end)
     normal_length = _length(normal)
     if normal_length <= DIRECTION_EPSILON:
-        raise ValueError("review-006 vertex-only triangle cone is angularly degenerate")
+        raise ValueError("review-006 vertex-only triangle cone angularly degenerate")
     normal = _mul(normal, 1.0 / normal_length)
     projected = _sub(point, _mul(normal, _dot(point, normal)))
     projected_length = _length(projected)
-    candidates = []
+    candidates = [_angle_unit(point, start), _angle_unit(point, end)]
     if projected_length > DIRECTION_EPSILON:
         nearest = _mul(projected, 1.0 / projected_length)
         for candidate in (nearest, _mul(nearest, -1.0)):
-            if _on_minor_arc(candidate, start, end):
-                candidates.append(_angle(point, candidate))
-    candidates.extend((_angle(point, start), _angle(point, end)))
+            if _on_minor_arc_unit(candidate, start, end):
+                candidates.append(_angle_unit(point, candidate))
     return min(candidates)
 
 
-def _minor_arc_separation(a, b, c, d):
-    a = _unit(a)
-    b = _unit(b)
-    c = _unit(c)
-    d = _unit(d)
+def _minor_arc_separation_unit(a, b, c, d):
     n1 = _cross(a, b)
     n2 = _cross(c, d)
     if _length(n1) <= DIRECTION_EPSILON or _length(n2) <= DIRECTION_EPSILON:
         raise ValueError("review-006 vertex-only cone contains degenerate spherical arc")
 
-    # If either arc endpoint lies on the other minor arc, the two positive
-    # angular cones already share a ray.
     for point, start, end in ((a, c, d), (b, c, d), (c, a, b), (d, a, b)):
-        if _on_minor_arc(point, start, end):
+        if _on_minor_arc_unit(point, start, end):
             return 0.0
 
     intersections = _cross(n1, n2)
     if _length(intersections) > DIRECTION_EPSILON:
         intersection = _unit(intersections)
         for candidate in (intersection, _mul(intersection, -1.0)):
-            if _on_minor_arc(candidate, a, b) and _on_minor_arc(candidate, c, d):
+            if _on_minor_arc_unit(candidate, a, b) and _on_minor_arc_unit(candidate, c, d):
                 return 0.0
 
     return min(
-        _point_to_minor_arc_distance(a, c, d),
-        _point_to_minor_arc_distance(b, c, d),
-        _point_to_minor_arc_distance(c, a, b),
-        _point_to_minor_arc_distance(d, a, b),
+        _point_to_minor_arc_distance_unit(a, c, d),
+        _point_to_minor_arc_distance_unit(b, c, d),
+        _point_to_minor_arc_distance_unit(c, a, b),
+        _point_to_minor_arc_distance_unit(d, a, b),
     )
 
 
-def _pair_cone_separation(positions, row):
+def _direction_cache(positions, rows):
+    required = set()
+    for row in rows:
+        shared = int(row["shared_vertex"])
+        for vertex in row["left_other_vertices"] + row["right_other_vertices"]:
+            required.add((shared, int(vertex)))
+    return {
+        pair: _unit(_sub(positions[pair[1]], positions[pair[0]]))
+        for pair in required
+    }
+
+
+def _pair_cone_separation(cache, row):
     shared = int(row["shared_vertex"])
-    origin = positions[shared]
-    left_a, left_b = row["left_other_vertices"]
-    right_a, right_b = row["right_other_vertices"]
-    return _minor_arc_separation(
-        _sub(positions[left_a], origin),
-        _sub(positions[left_b], origin),
-        _sub(positions[right_a], origin),
-        _sub(positions[right_b], origin),
+    left_a, left_b = (int(v) for v in row["left_other_vertices"])
+    right_a, right_b = (int(v) for v in row["right_other_vertices"])
+    return _minor_arc_separation_unit(
+        cache[(shared, left_a)],
+        cache[(shared, left_b)],
+        cache[(shared, right_a)],
+        cache[(shared, right_b)],
     )
 
 
 def _inspect_positions(positions, rows):
+    cache = _direction_cache(positions, rows)
     minimum = math.inf
     closest = None
     uncertified_count = 0
     for row in rows:
-        separation = _pair_cone_separation(positions, row)
+        separation = _pair_cone_separation(cache, row)
         if separation < minimum:
             minimum = separation
             closest = {
@@ -262,7 +266,8 @@ def sampled_vertex_only_neighbor_contract():
         },
         "sampled_vertex_only_guard": {
             "range_deg": [SAFE_START_DEG, SAFE_END_DEG],
-            "step_deg": SAMPLE_STEP_DEG,
+            "regular_step_deg": SAMPLE_STEP_DEG,
+            "exact_safe_endpoint_included": True,
             "contact_epsilon_rad": VERTEX_CONTACT_EPSILON_RAD,
             "predicate": (
                 "POSITIVE_SPHERICAL_TRIANGLE_CONES_AROUND_SHARED_VERTEX_"
@@ -294,7 +299,7 @@ def _sample_side(side):
     rows = _vertex_only_rows(faces)
     edge_rows, expected_vertex_only_count = _adjacency_rows(faces)
     if len(rows) != expected_vertex_only_count:
-        raise ValueError("review-006 vertex-only pair count drift from adjacency observer")
+        raise ValueError("review-006 vertex-only count drift from adjacency observer")
     if not edge_rows or not rows:
         raise ValueError("review-006 vertex-only observer requires both adjacency classes")
 
@@ -304,14 +309,12 @@ def _sample_side(side):
     representative_positions = {}
     representative_rows = []
     representative_set = set(float(value) for value in REPRESENTATIVE_ANGLES_DEG)
-    sample_count = 0
 
     for angle in _sample_angles():
         posed = _pose_at(specimen, layout, origin, axis, angle)
         if not _pose_pass(posed):
-            raise ValueError(f"review-006 vertex-only pose structural failure at {angle} degrees")
+            raise ValueError(f"review-006 vertex-only structural failure at {angle} degrees")
         report = _inspect_positions(posed["positions"], rows)
-        sample_count += 1
         if report["uncertified_pair_count"]:
             failing_samples.append({"angle_deg": float(angle), "report": report})
         if report["minimum_cone_separation_rad"] < minimum:
@@ -346,8 +349,9 @@ def _sample_side(side):
     return {
         "side": side,
         "sample_range_deg": [SAFE_START_DEG, SAFE_END_DEG],
-        "sample_step_deg": SAMPLE_STEP_DEG,
-        "sample_count": sample_count,
+        "regular_sample_step_deg": SAMPLE_STEP_DEG,
+        "exact_safe_endpoint_included": True,
+        "sample_count": len(_sample_angles()),
         "vertex_only_neighbor_pair_count": len(rows),
         "uncertified_sample_count": len(failing_samples),
         "uncertified_samples": failing_samples[:12],
@@ -366,11 +370,8 @@ def _sample_side(side):
 
 def _negative_control(side_result):
     posed = _pose_at(
-        side_result["specimen"],
-        side_result["layout"],
-        side_result["origin"],
-        side_result["axis"],
-        0.0,
+        side_result["specimen"], side_result["layout"],
+        side_result["origin"], side_result["axis"], 0.0,
     )
     positions = [tuple(float(value) for value in point) for point in posed["positions"]]
     row = side_result["rows"][0]
@@ -379,9 +380,9 @@ def _negative_control(side_result):
     right_vertex = int(row["right_other_vertices"][0])
     origin = positions[shared]
     target_direction = _unit(_sub(positions[left_vertex], origin))
-    original_radius = _length(_sub(positions[right_vertex], origin))
-    positions[right_vertex] = _add(origin, _mul(target_direction, original_radius))
-    observed = _pair_cone_separation(positions, row)
+    radius = _length(_sub(positions[right_vertex], origin))
+    positions[right_vertex] = _add(origin, _mul(target_direction, radius))
+    observed = _pair_cone_separation(_direction_cache(positions, (row,)), row)
     rejected = observed <= VERTEX_CONTACT_EPSILON_RAD
     return {
         "side": side_result["side"],
@@ -399,7 +400,6 @@ def _negative_control(side_result):
 def audit_review006_sampled_vertex_only_neighbor_cone_margin(contract=None):
     contract = contract or sampled_vertex_only_neighbor_contract()
     _validate_contract(contract)
-
     continuous_edge = audit_review006_continuous_edge_adjacent_fold_margin()
     if continuous_edge["status"] != CONTINUOUS_EDGE_STATUS:
         raise ValueError("continuous edge-adjacent prerequisite is not green")
@@ -420,14 +420,11 @@ def audit_review006_sampled_vertex_only_neighbor_cone_margin(contract=None):
         sides["L"]["minimum_sampled_cone_separation_rad"]
         - sides["R"]["minimum_sampled_cone_separation_rad"]
     )
-    representative_mirror = True
-    for angle in REPRESENTATIVE_ANGLES_DEG:
-        left_positions = raw["L"]["representative_positions"][float(angle)]
-        right_positions = raw["R"]["representative_positions"][float(angle)]
-        if _mirror_position_set(left_positions) != _position_set(right_positions):
-            representative_mirror = False
-            break
-
+    representative_mirror = all(
+        _mirror_position_set(raw["L"]["representative_positions"][float(angle)])
+        == _position_set(raw["R"]["representative_positions"][float(angle)])
+        for angle in REPRESENTATIVE_ANGLES_DEG
+    )
     sampled_pass = (
         pair_count_match
         and representative_mirror
@@ -440,14 +437,13 @@ def audit_review006_sampled_vertex_only_neighbor_cone_margin(contract=None):
     )
     negatives = {side: _negative_control(raw[side]) for side in ("L", "R")}
     negative_rejected = all(row["rejected"] for row in negatives.values())
-    status = STATUS if sampled_pass and negative_rejected else FAIL_STATUS
-
     return {
         "schema": SCHEMA,
-        "status": status,
+        "status": STATUS if sampled_pass and negative_rejected else FAIL_STATUS,
         "sampled_vertex_only_neighbor_guard": {
             "range_deg": [SAFE_START_DEG, SAFE_END_DEG],
-            "step_deg": SAMPLE_STEP_DEG,
+            "regular_step_deg": SAMPLE_STEP_DEG,
+            "exact_safe_endpoint_included": True,
             "sample_count_per_side": len(_sample_angles()),
             "all_sampled_vertex_only_pairs_cone_separated": sampled_pass,
             "bilateral_pair_count_match": pair_count_match,
@@ -455,14 +451,11 @@ def audit_review006_sampled_vertex_only_neighbor_cone_margin(contract=None):
             "bilateral_representative_pose_mirror": representative_mirror,
             "sides": sides,
         },
-        "negative_control": {
-            "rejected": negative_rejected,
-            "sides": negatives,
-        },
+        "negative_control": {"rejected": negative_rejected, "sides": negatives},
         "truth_boundary": [
             "Positive cone separation is a sufficient sampled-pose certificate that a vertex-only neighbour pair shares only its intended indexed vertex.",
-            "The certificate is evaluated only at the retained 0.05-degree owner samples from -40 through +36.55 degrees.",
-            "Continuous between-sample vertex-only neighbour freedom remains unproven and is not inherited from the edge-adjacent certificate.",
+            "The guard samples every 0.25 degrees from -40 through +36.5 and additionally checks the exact +36.55 retained safe endpoint.",
+            "Continuous between-sample vertex-only neighbour freedom remains unproven and is not inherited from edge-adjacent evidence.",
             "The +36.60 retained nonadjacent contact remains a separate failure class and is not erased by vertex-only results.",
             "No anatomy, Animation, Technical Art, Runtime, gameplay, final visual, CANON, production-readiness, game-readiness or Rigging-mastery claim is made.",
         ],
@@ -473,12 +466,8 @@ def build_review006_sampled_vertex_only_neighbor_cone_margin_evidence(out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     audit = audit_review006_sampled_vertex_only_neighbor_cone_margin()
-    with (out / "review006-sampled-vertex-only-neighbor-cone-margin.json").open(
-        "w", encoding="utf-8"
-    ) as handle:
+    with (out / "review006-sampled-vertex-only-neighbor-cone-margin.json").open("w", encoding="utf-8") as handle:
         json.dump(audit, handle, indent=2, sort_keys=True)
-    with (out / "review006-sampled-vertex-only-neighbor-contract.json").open(
-        "w", encoding="utf-8"
-    ) as handle:
+    with (out / "review006-sampled-vertex-only-neighbor-contract.json").open("w", encoding="utf-8") as handle:
         json.dump(sampled_vertex_only_neighbor_contract(), handle, indent=2, sort_keys=True)
     return audit

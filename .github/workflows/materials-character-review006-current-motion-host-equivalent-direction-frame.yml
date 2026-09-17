@@ -1,0 +1,203 @@
+name: Materials Character review006 current motion host-equivalent direction-frame evidence
+
+on:
+  push:
+    branches: [studio/materials-character-shaded-shoulder-001]
+    paths:
+      - "lookdev/character_review006_current_motion_host_equivalent_direction_frame_review_002.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_current_motion_host_equivalent_direction_frame_observe.gd"
+      - "tools/build_character_review006_current_motion_host_equivalent_direction_frame_evidence.py"
+      - ".github/workflows/materials-character-review006-current-motion-host-equivalent-direction-frame.yml"
+  pull_request:
+    paths:
+      - "lookdev/character_review006_current_motion_host_equivalent_direction_frame_review_002.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_current_motion_host_equivalent_direction_frame_observe.gd"
+      - "tools/build_character_review006_current_motion_host_equivalent_direction_frame_evidence.py"
+      - ".github/workflows/materials-character-review006-current-motion-host-equivalent-direction-frame.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host-equivalent-direction-frame:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: Checkout exact Materials head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact Technical Art bridge and retained owner lineage
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor e450684b398f8e5b0e23c4cbf717e3475dd4d5ee HEAD
+          test "$(git rev-parse e450684b398f8e5b0e23c4cbf717e3475dd4d5ee:tools/build_character_review006_shaded_shoulder_evidence.py)" = "843c0e1866172dd8b6c5ab0f23d69d1e469562f7"
+          test "$(git rev-parse HEAD:src/axm_character_design/review006_uc_skin_transport.py)" = "831fd7522ec2a8783862da653d6f12465252a3b2"
+          git fetch --no-tags origin a61f96d2cf8c33b153d17810ad18ca48074b81d2
+          git fetch --no-tags origin 675a6800271f9be563763026e3b196607a0a1cd3
+          test "$(git rev-parse a61f96d2cf8c33b153d17810ad18ca48074b81d2:src/axm_character_design/review006_uc_skin_transport.py)" = "831fd7522ec2a8783862da653d6f12465252a3b2"
+          test "$(git rev-parse a61f96d2cf8c33b153d17810ad18ca48074b81d2:src/axm_character_design/target_host_surface_bridge.py)" = "c66d09f74cb6ff81c864e60dfbe6159c6f0c1455"
+          test "$(git rev-parse 675a6800271f9be563763026e3b196607a0a1cd3:src/axm_character_design/review006_shoulder_neutral_bind_frame.py)" = "38b2510f0e543c05be3792af5aaf8cbd194c1467"
+          mkdir -p lookdev-proof/generated
+          git rev-parse HEAD > lookdev-proof/generated/exact-materials-head.txt
+          printf '%s\n' a61f96d2cf8c33b153d17810ad18ca48074b81d2 > lookdev-proof/generated/exact-technical-art-bridge-head.txt
+          printf '%s\n' 675a6800271f9be563763026e3b196607a0a1cd3 > lookdev-proof/generated/exact-rigging-neutral-oracle-head.txt
+          git show a61f96d2cf8c33b153d17810ad18ca48074b81d2:src/axm_character_design/target_host_surface_bridge.py > lookdev-proof/generated/exact-target-host-surface-bridge.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact host-equivalent current-motion payload and target GLB
+        env:
+          PYTHONPATH: src
+        run: python tools/build_character_review006_current_motion_host_equivalent_direction_frame_evidence.py
+
+      - name: Prove host-equivalent Materials contract drift fails closed
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys, tempfile
+          from pathlib import Path
+          src=Path('lookdev/character_review006_current_motion_host_equivalent_direction_frame_review_002.json')
+          data=json.loads(src.read_text())
+          data['receiver']['universal_godot_rule']=True
+          temp=Path(tempfile.mkdtemp())
+          bad=temp/'bad.json'
+          bad.write_text(json.dumps(data))
+          proc=subprocess.run(
+              [sys.executable,'tools/build_character_review006_current_motion_host_equivalent_direction_frame_evidence.py','--contract',str(bad),'--out-dir',str(temp/'out')],
+              env={**os.environ,'PYTHONPATH':'src'},capture_output=True,text=True)
+          assert proc.returncode != 0,(proc.stdout,proc.stderr)
+          assert 'receiver relation must remain receiver-local' in (proc.stdout+proc.stderr),(proc.stdout,proc.stderr)
+          print('receiver-local relation drift rejected as expected')
+          PY
+
+      - name: Cross-check exact Technical Art helper against Materials payload
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import importlib.util,json
+          from pathlib import Path
+          helper_path=Path('lookdev-proof/generated/exact-target-host-surface-bridge.py')
+          spec=importlib.util.spec_from_file_location('exact_bridge',helper_path)
+          bridge=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(bridge)
+          payload=json.loads(Path('lookdev-proof/generated/character_review006_current_motion_host_equivalent_direction_frame_payload.json').read_text())
+          ref=payload['samples']['160']['reference']
+          expected=bridge.reverse_triangle_winding(ref['owner_faces'])
+          assert expected==ref['receiver_winding_faces']
+          owner_flat=bridge.flatten_faces(ref['owner_faces'])
+          adapted_flat=bridge.flatten_faces(ref['receiver_winding_faces'])
+          assert len(owner_flat)==1080 and len(adapted_flat)==1080
+          partial=list(adapted_flat)
+          partial[1],partial[2]=owner_flat[1],owner_flat[2]
+          row=bridge.classify_index_relation(ref['owner_faces'],partial)
+          assert row['relation']==bridge.OTHER_INDEX_RELATION,row
+          print(json.dumps(row,indent=2,sort_keys=True))
+          PY
+
+      - name: Download pinned Godot 4.7.2
+        if: matrix.python-version == '3.11'
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        if: matrix.python-version == '3.11'
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Render current imported target against host-equivalent references
+        if: matrix.python-version == '3.11'
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/character-review006-current-motion-host-equivalent-*.png
+          rm -f lookdev-proof/character-review006-current-motion-host-equivalent-direction-frame-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script character_review006_current_motion_host_equivalent_direction_frame_observe.gd
+
+      - name: Validate bounded host-equivalent current-motion diagnostic
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('lookdev-proof')
+          r=json.loads((root/'character-review006-current-motion-host-equivalent-direction-frame-runtime-receipt.json').read_text())
+          assert r['state']=='PASS_DIAGNOSTIC',r
+          allowed={
+              'PASS_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_CLOSER_TO_HOST_EQUIVALENT_POSE_RECOMPUTED_REFERENCE',
+              'FAIL_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_CLOSER_TO_HOST_EQUIVALENT_FROZEN_NEUTRAL_CONTROL',
+              'HOLD_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_MIXED_HOST_EQUIVALENT_RESPONSE',
+              'HOLD_CHARACTER_REVIEW006_HOST_EQUIVALENT_BRIDGE_DRIFT',
+              'INCONCLUSIVE_CHARACTER_REVIEW006_HOST_EQUIVALENT_DIRECTION_FRAME__POSITION_CONTROL_MISMATCH',
+              'HOLD_CHARACTER_REVIEW006_HOST_EQUIVALENT_DIRECTION_FRAME__NEUTRAL_GATE_NOT_CLOSED',
+              'HOLD_CHARACTER_REVIEW006_HOST_EQUIVALENT_DIRECTION_FRAME__OBSERVER_SENSITIVITY_NOT_PROVEN',
+          }
+          assert r['result'] in allowed,r
+          assert r['deformed_comparison_count']==6,r
+          audit=r['raw_neutral_import_audit']
+          assert audit['index_count']==1080 and audit['triangle_count']==360,audit
+          assert audit['owner_order_mismatch_count']==720,audit
+          assert audit['receiver_winding_mismatch_count']==0,audit
+          for sample in ('80','240'):
+              for context,row in r['comparisons'][sample].items():
+                  assert row['pose_recomputed_to_frozen_neutral_host_equivalent']['changed_pixels_gt_1lsb']>0,(sample,context,row)
+          assert r['truth_boundary']['production_normals_or_tangents'] is False,r
+          assert r['truth_boundary']['tangent_space_detail'] is False,r
+          print(json.dumps(r,indent=2,sort_keys=True))
+          PY
+
+      - name: Retain exact host-equivalent current-motion direction-frame evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-current-motion-host-equivalent-direction-frame-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            lookdev/character_review006_current_motion_host_equivalent_direction_frame_review_002.json
+            tools/build_character_review006_current_motion_host_equivalent_direction_frame_evidence.py
+            lookdev-proof/project.godot
+            lookdev-proof/character_review006_current_motion_host_equivalent_direction_frame_observe.gd
+            lookdev-proof/generated/character_review006_current_motion_host_equivalent_direction_frame_payload.json
+            lookdev-proof/generated/character-review006-current-motion-host-equivalent-target.glb
+            lookdev-proof/generated/exact-materials-head.txt
+            lookdev-proof/generated/exact-technical-art-bridge-head.txt
+            lookdev-proof/generated/exact-rigging-neutral-oracle-head.txt
+            lookdev-proof/generated/exact-target-host-surface-bridge.py
+            lookdev-proof/character-review006-current-motion-host-equivalent-direction-frame-runtime-receipt.json
+            lookdev-proof/character-review006-current-motion-host-equivalent-*.png
+          if-no-files-found: warn
+          retention-days: 60

@@ -13,6 +13,7 @@ from axm_character_design.review006_shoulder_rigging_rebind import (
     EXPECTED_REVIEW006_SOURCE_DIGEST,
     EXPECTED_TOPOLOGY_DIGESTS,
     GEOMETRY_HEAD,
+    STATUS as RIGGING_STATUS,
     audit_review006_rigging_rebind,
 )
 
@@ -61,7 +62,7 @@ def smooth_normals(vertices, faces):
         a, b, c = face
         e1 = sub(vertices[b], vertices[a])
         e2 = sub(vertices[c], vertices[a])
-        n = cross(e1, e2)  # area weighted by construction
+        n = cross(e1, e2)
         if length(n) <= 1e-15:
             raise ValueError("degenerate face in normal receiver")
         for idx in face:
@@ -123,11 +124,8 @@ def candidate_rows(audit, side):
 def build_payload(contract_path: Path = CONTRACT_PATH):
     contract = load_contract(contract_path)
     donor = audit_review006_rigging_rebind()
-    if donor.get("status") != "PASS_CHARACTER_REVIEW006_RIGGING_REBIND_WITH_MEASURED_INTERSECTION_BOUNDARY":
-        # Keep this check fail-closed while allowing the exact donor module to define the status.
-        actual = donor.get("status")
-        if not (isinstance(actual, str) and actual.startswith("PASS_CHARACTER_REVIEW006_RIGGING_REBIND")):
-            raise ValueError(f"Rigging donor is not green: {actual}")
+    if donor.get("status") != RIGGING_STATUS:
+        raise ValueError(f"Rigging donor status drift: {donor.get('status')}")
     identity = donor["exact_identity"]
     if identity["review006_source_digest"] != EXPECTED_REVIEW006_SOURCE_DIGEST:
         raise ValueError("donor source identity mismatch")

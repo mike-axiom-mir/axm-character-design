@@ -7,6 +7,9 @@ import json
 from axm_character_design.review006_shoulder_deformation_gradient_frame import (
     build_review006_deformation_gradient_frame_evidence,
 )
+from axm_character_design.review006_shoulder_neutral_bind_frame import (
+    build_review006_neutral_bind_frame_evidence,
+)
 from axm_character_design.review006_shoulder_safe_envelope import (
     build_review006_structural_safe_envelope_evidence,
 )
@@ -18,8 +21,8 @@ from axm_character_design.review006_shoulder_subdegree_boundary import (
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Build exact review-006 Rigging structural, sub-degree boundary and "
-            "deformation-gradient frame evidence."
+            "Build exact review-006 Rigging structural, sub-degree boundary, "
+            "deformation-gradient frame and neutral bind-frame evidence."
         )
     )
     parser.add_argument("out_dir")
@@ -28,6 +31,7 @@ def main():
     safe = build_review006_structural_safe_envelope_evidence(args.out_dir)
     subdegree = build_review006_positive_subdegree_boundary_evidence(args.out_dir)
     frame = build_review006_deformation_gradient_frame_evidence(args.out_dir)
+    neutral = build_review006_neutral_bind_frame_evidence(args.out_dir)
     print(json.dumps({
         "status": safe["status"],
         "safe_envelope_deg": safe["safe_envelope"]["range_deg"],
@@ -45,6 +49,12 @@ def main():
         "continuous_proximal_determinant_lower_bound": frame["deformation_gradient_reference"]["continuous_proximal_determinant_lower_bound_minus40_plus40"],
         "max_owner_affine_position_residual_m": frame["deformation_gradient_reference"]["max_owner_affine_position_residual_m"],
         "frame_negative_control_rejected": frame["negative_control"]["rejected"],
+        "neutral_bind_frame_status": neutral["status"],
+        "neutral_receiver_vertices": neutral["neutral_closure"]["total_receiver_vertices"],
+        "neutral_owner_vertex_drift_m": neutral["neutral_closure"]["max_owner_vertex_drift_m"],
+        "neutral_gradient_identity_delta": neutral["neutral_closure"]["max_gradient_identity_component_delta"],
+        "neutral_normal_matrix_identity_delta": neutral["neutral_closure"]["max_normal_matrix_identity_component_delta"],
+        "neutral_negative_control_rejected": neutral["negative_control"]["rejected"],
     }, sort_keys=True))
 
 

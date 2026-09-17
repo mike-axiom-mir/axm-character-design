@@ -6,11 +6,13 @@ on:
       - "src/axm_character_design/review006_shoulder_rigging_rebind.py"
       - "src/axm_character_design/review006_shoulder_safe_envelope.py"
       - "src/axm_character_design/review006_shoulder_subdegree_boundary.py"
+      - "src/axm_character_design/review006_shoulder_deformation_gradient_frame.py"
       - "src/axm_character_design/review006_connected_geometry.py"
       - "src/axm_character_design/review006_self_intersection.py"
       - "tests/test_review006_shoulder_rigging_rebind.py"
       - "tests/test_review006_shoulder_safe_envelope.py"
       - "tests/test_review006_shoulder_subdegree_boundary.py"
+      - "tests/test_review006_shoulder_deformation_gradient_frame.py"
       - "tools/build_review006_rigging_rebind_evidence.py"
       - ".github/workflows/rigging-character-review006-rebind.yml"
   workflow_dispatch:
@@ -41,7 +43,7 @@ jobs:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
-      - name: Build exact review006 Rigging safe-envelope + subdegree evidence
+      - name: Build exact review006 Rigging safe-envelope + subdegree + frame evidence
         if: matrix.python-version == '3.11'
         env:
           PYTHONPATH: src

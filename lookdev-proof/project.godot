@@ -1,0 +1,14 @@
+[application]
+config/name="AXM Character review006 shaded shoulder proof"
+run/main_scene=""
+
+[display]
+window/size/viewport_width=900
+window/size/viewport_height=700
+window/size/window_width_override=900
+window/size/window_height_override=700
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.055, 0.06, 0.07, 1)

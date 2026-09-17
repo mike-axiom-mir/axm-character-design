@@ -1,0 +1,56 @@
+{
+  "schema": "axm.character-review006-target-host-playback/v0.1",
+  "method_id": "axm.character-review006-target-host-playback/v0.1",
+  "truth_label": "TARGET_HOST_ANIMATIONPLAYER_INTERPOLATION_AND_WALL_CLOCK_DIAGNOSTIC_NOT_CONTROLLER_OR_GAMEPLAY",
+  "materials_parent_head": "c2ae66c75abac064b679f1597b7544d058dc3ad1",
+  "technical_art_head": "1c021d40d7d606f6fb2a29e69f9353640aa33f60",
+  "source_animation_head": "9519be55581c009fd800d175677d9b50ee6926e6",
+  "rigging_head": "fa16c44b1a488d43842470fc9f30c5fb5e98cab6",
+  "target_glb_sha256": "76acbfca2c50151f4c801bf34910f94eea6bd6d165caeb1e344b8001a2b83a99",
+  "source_motion": {
+    "duration_s": 2.0,
+    "authored_hz": 40,
+    "transport_key_hz": 160,
+    "transport_key_count": 321,
+    "motion_reauthored": false,
+    "timing_reauthored": false,
+    "amplitude_reauthored": false
+  },
+  "target_host": {
+    "engine": "Godot",
+    "version": "4.7.2-stable",
+    "rendering_method": "gl_compatibility",
+    "expected_animation_track_count": 6,
+    "expected_transport_key_count_per_track": 321,
+    "midpoint_interval_count": 320,
+    "midpoint_rotation_error_tolerance_deg": 0.001,
+    "midpoint_scale_component_tolerance": 0.00001,
+    "wall_clock_timeout_s": 4.0
+  },
+  "negative_control": {
+    "kind": "VERIFIER_ONLY_EXPECTED_ROTATION_OFFSET",
+    "offset_deg": 0.25,
+    "must_fail_closed": true
+  },
+  "known_downstream_boundary": {
+    "materials_current_motion_result": "INCONCLUSIVE_CHARACTER_REVIEW006_TARGET_DIRECTION_FRAME_MIXED_RESPONSE",
+    "materials_direction_frame_artifact_id": 10495430458,
+    "materials_direction_frame_artifact_sha256": "e2a2781710fa41794ad0272e32838339eb850764c36ed9ed5b5d527969d7058e",
+    "meaning": "Animation playback evidence must not be used to repair, hide, or promote the mixed direction-frame result."
+  },
+  "truth_boundary": {
+    "target_host_animationplayer_midpoint_interpolation": "EVALUATE",
+    "capture_free_wall_clock_playback": "CHARACTERIZE",
+    "source_motion_change": false,
+    "rigging_or_skin_change": false,
+    "deformed_normals_or_tangents": "NOT_EVALUATED",
+    "shaded_motion_quality": "NOT_EVALUATED",
+    "complete_160hz_presentation_delivery": "NOT_CLAIMED",
+    "runtime_controller_or_state_machine": "NOT_EVALUATED",
+    "physics_collision_input_gameplay": "NOT_EVALUATED",
+    "target_device_performance": "NOT_EVALUATED",
+    "art_direction_or_visual_qa_acceptance": false,
+    "source_adoption_or_canon": false,
+    "production_readiness": false
+  }
+}

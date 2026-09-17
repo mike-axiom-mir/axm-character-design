@@ -7,6 +7,7 @@ on:
       - "src/axm_character_design/review006_self_intersection.py"
       - "tests/test_review006_connected_geometry.py"
       - "tools/build_review006_geometry_rebind_evidence.py"
+      - "tools/build_review006_uc_topology_rebind_evidence.py"
       - ".github/workflows/geometry-character-review006-rebind.yml"
   workflow_dispatch:
 
@@ -38,6 +39,26 @@ jobs:
           rm -rf build/review006-geometry-rebind
           python tools/build_review006_geometry_rebind_evidence.py build/review006-geometry-rebind
           git rev-parse HEAD > build/review006-geometry-rebind/exact-head.txt
+      - name: Checkout exact merged UC topology observer
+        if: matrix.python-version == '3.11'
+        uses: actions/checkout@v4
+        with:
+          repository: mike-axiom-mir/axm-universal-creation
+          ref: 5bdeea950ed1292de23f65012d66a876ecf5c094
+          path: external/axm-universal-creation
+      - name: Rebind selected Character receiver to merged UC observer
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src:external/axm-universal-creation/src
+        run: |
+          UC_HEAD="$(git -C external/axm-universal-creation rev-parse HEAD)"
+          UC_OBSERVER_BLOB="$(git -C external/axm-universal-creation rev-parse HEAD:src/axm_uc/mesh_topology.py)"
+          python tools/build_review006_uc_topology_rebind_evidence.py \
+            build/review006-geometry-rebind \
+            --uc-head "$UC_HEAD" \
+            --uc-observer-blob "$UC_OBSERVER_BLOB"
+          printf '%s\n' "$UC_HEAD" > build/review006-geometry-rebind/uc-merged-head.txt
+          printf '%s\n' "$UC_OBSERVER_BLOB" > build/review006-geometry-rebind/uc-mesh-topology-blob.txt
       - name: Upload retained exact-head evidence
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4

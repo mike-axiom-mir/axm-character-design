@@ -65,9 +65,6 @@ func collect_meshes(node: Node, out: Array) -> void:
     for child in node.get_children():
         collect_meshes(child, out)
 
-func scalar_delta(a: float, b: float) -> float:
-    return absf(a - b)
-
 func variant_delta(a: Variant, b: Variant) -> float:
     if typeof(a) != typeof(b):
         return INF
@@ -208,6 +205,14 @@ func run_observer() -> void:
     if evidence.get("result") != "PASS_CHARACTER_REVIEW006_RUNTIME_EXACT_ACCESSOR_SHARING_ADOPTED_AT_TECHNICAL_ART_EXPORT_BOUNDARY_TO_CURRENT_UC":
         fail("missing or non-green Technical Art accessor-sharing evidence")
         return
+    var dense_sampling: Dictionary = evidence.get("source_dense_sampling", {})
+    var source_sample_count := int(dense_sampling.get("sample_count", 0))
+    var source_sample_rate_hz := int(dense_sampling.get("sample_rate_hz", 0))
+    var source_duration_s := float(dense_sampling.get("duration_s", -1.0))
+    if source_sample_count != 321 or source_sample_rate_hz != 160 or absf(source_duration_s - 2.0) > 1.0e-12:
+        fail("source dense sample contract drift", {"source_dense_sampling": dense_sampling})
+        return
+
     var control_scene := instantiate_glb(CONTROL_PATH)
     var candidate_scene := instantiate_glb(CANDIDATE_PATH)
     if control_scene == null or candidate_scene == null:
@@ -235,30 +240,34 @@ func run_observer() -> void:
 
     var clip := String(animation["clip"])
     var imported_animation: Animation = control_player.get_animation(clip)
-    var key_count := imported_animation.track_get_key_count(0)
-    if key_count != 321:
-        fail("bounded receiver expected 321 imported dense keys", {"key_count": key_count})
+    var imported_first_track_keys := imported_animation.track_get_key_count(0)
+    if imported_first_track_keys < 2:
+        fail("Godot imported animation has too few keys for interpolation", {"key_count": imported_first_track_keys})
+        return
+    if absf(imported_animation.length - source_duration_s) > 1.0e-6:
+        fail("Godot imported animation duration drift", {"imported_duration_s": imported_animation.length, "source_duration_s": source_duration_s})
         return
 
     var max_pose_position_delta := 0.0
     var max_pose_rotation_delta := 0.0
     var max_pose_scale_delta := 0.0
     var compared_samples := 0
-    for key_index in range(key_count):
-        var time_s := imported_animation.track_get_key_time(0, key_index)
+    for sample_index in range(source_sample_count):
+        var time_s := float(sample_index) / float(source_sample_rate_hz)
         seek_player(control_player, clip, time_s)
         seek_player(candidate_player, clip, time_s)
         var row := skeleton_delta(control_skeleton, candidate_skeleton)
         if row.get("state") != "PASS":
-            fail("imported skeleton identity differs", {"sample": key_index, "row": row})
+            fail("imported skeleton identity differs", {"sample": sample_index, "time_s": time_s, "row": row})
             return
         max_pose_position_delta = maxf(max_pose_position_delta, float(row["maximum_position_component_delta"]))
         max_pose_rotation_delta = maxf(max_pose_rotation_delta, float(row["maximum_rotation_component_delta"]))
         max_pose_scale_delta = maxf(max_pose_scale_delta, float(row["maximum_scale_component_delta"]))
         compared_samples += 1
 
-    seek_player(control_player, clip, imported_animation.track_get_key_time(0, 160))
-    seek_player(candidate_player, clip, imported_animation.track_get_key_time(0, 160))
+    var neutral_time_s := source_duration_s * 0.5
+    seek_player(control_player, clip, neutral_time_s)
+    seek_player(candidate_player, clip, neutral_time_s)
     var before := skeleton_delta(control_skeleton, candidate_skeleton)
     if before.get("state") != "PASS" or float(before["maximum_scale_component_delta"]) > TOLERANCE:
         fail("negative-control baseline is not clean", {"before": before})
@@ -278,6 +287,7 @@ func run_observer() -> void:
         and max_pose_position_delta <= TOLERANCE
         and max_pose_rotation_delta <= TOLERANCE
         and max_pose_scale_delta <= TOLERANCE
+        and compared_samples == source_sample_count
         and negative_visible
     )
     var receipt := {
@@ -292,10 +302,18 @@ func run_observer() -> void:
         },
         "control_glb_sha256": evidence["control"]["sha256"],
         "candidate_glb_sha256": evidence["candidate"]["sha256"],
+        "source_dense_sampling": dense_sampling,
+        "godot_import_sampling": {
+            "first_track_keys": imported_first_track_keys,
+            "animation_length_s": imported_animation.length,
+            "source_dense_keys_preserved_as_imported_keys": imported_first_track_keys == source_sample_count,
+            "receiver_equivalence_sampled_at_source_times": true
+        },
         "animation_resource_equivalence": animation,
         "mesh_resource_equivalence": mesh,
         "dense_skin_pose_equivalence": {
             "samples": compared_samples,
+            "sample_rate_hz": source_sample_rate_hz,
             "maximum_position_component_delta": max_pose_position_delta,
             "maximum_rotation_component_delta": max_pose_rotation_delta,
             "maximum_scale_component_delta": max_pose_scale_delta
@@ -307,7 +325,8 @@ func run_observer() -> void:
         },
         "truth_boundary": {
             "real_target_engine_import": "EVALUATED",
-            "real_target_engine_dense_key_skin_pose_equivalence": "EVALUATED_321_KEYS",
+            "real_target_engine_dense_source_time_skin_pose_equivalence": "EVALUATED_321_SOURCE_TIMES",
+            "godot_may_resample_imported_animation_keys": true,
             "rendered_frame_equivalence": "NOT_EVALUATED",
             "target_device_performance": "NOT_EVALUATED",
             "tangent_or_tangent_space": "NOT_EVALUATED",

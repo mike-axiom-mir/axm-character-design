@@ -23,8 +23,8 @@ from .shoulder_pose_clearance_spatial_context import (
 )
 from .shoulder_source_lineage import adopted_character_source, build_adopted_character_mesh
 
-SCHEMA = "axm.character-shoulder-review-decision-packet/v0.1"
-STATUS = "PASS_EXACT_REVIEW006_ORGANIC_DECISION_PACKET_RETAINED"
+SCHEMA = "axm.character-shoulder-review-decision-packet/v0.2"
+STATUS = "PASS_EXACT_REVIEW006_ORGANIC_DECISION_PACKET_WITH_ART_DIRECTION_PREFERENCE_RETAINED"
 
 # Geometry PR #15 is deliberately recorded only as a separate-lineage handoff.
 # Its negative result applies to the accepted-E source, not to review-006.
@@ -32,6 +32,22 @@ GEOMETRY_PR15_HEAD = "31675939985aee37eaba7beea58c9443eb85b9ac"
 GEOMETRY_PR15_SCOPE = (
     "accepted-E-only face-disjoint three-flip topology family exhausted; "
     "1122 candidates, 0 strict dense improvements, nonzero sampled intersections remain"
+)
+
+# External Art Direction return is pinned as coordination evidence only. Character CI
+# does not impersonate or re-perform the Art review; it records the exact returned
+# decision and keeps independent QA / Geometry / Rigging / source adoption separate.
+ART_DIRECTION_DECISION = "PASS_ART_DIRECTION_CHARACTER_REVIEW006_NEUTRAL_FORM_PREFERENCE_023"
+ART_DIRECTION_HOLD = (
+    "HOLD_CHARACTER_REVIEW006_SOURCE_ADOPTION__INDEPENDENT_QA_EXACT_GEOMETRY_REBIND_AND_RIGGING_PENDING"
+)
+ART_DIRECTION_REVIEWED_ORGANIC_HEAD = "600fa8ee07fa31c7f9a4f237289c3d85e7a609c3"
+ART_DIRECTION_COORDINATION_COMMIT = "ec9244d8d2cb75e55061060a4a737cd073df6866"
+ART_DIRECTION_PACKET_BLOB = "413826284a3a80d36b514bc9ce4b54eb22edc810"
+ART_DIRECTION_PR2_COMMENT_ID = 5711130272
+ART_DIRECTION_RETAINED_ARTIFACT_ID = 10485067233
+ART_DIRECTION_RETAINED_ARTIFACT_SHA256 = (
+    "9ebee1454e2b3a76335310ed2bc151c089cc40bb4139098a9d23b892e04695e8"
 )
 
 
@@ -108,9 +124,7 @@ def audit_shoulder_review_decision_packet():
         "source_adoption": "NOT_CLAIMED",
         "changed_landmarks_from_accepted_E_parent": changed,
         "exact_form_context": {
-            "accepted_E_parent_elbow_flexion_from_straight_deg": (
-                2.082565279731
-            ),
+            "accepted_E_parent_elbow_flexion_from_straight_deg": 2.082565279731,
             "review005_elbow_flexion_from_straight_deg": form_metrics[
                 "review005_flexion_from_straight_deg"
             ],
@@ -146,11 +160,34 @@ def audit_shoulder_review_decision_packet():
             "shoulder-pose-clearance-review-006-spatial-context.svg",
             "shoulder-pose-clearance-elbow-chain-front.svg",
         ],
+        "art_direction_return": {
+            "owner": "3D Art Director",
+            "decision": ART_DIRECTION_DECISION,
+            "companion_hold": ART_DIRECTION_HOLD,
+            "reviewed_organic_head": ART_DIRECTION_REVIEWED_ORGANIC_HEAD,
+            "reviewed_review006_source_digest": EXPECTED_REVIEW006_SOURCE_DIGEST,
+            "reviewed_review006_mesh_digest": EXPECTED_REVIEW006_MESH_DIGEST,
+            "coordination_commit": ART_DIRECTION_COORDINATION_COMMIT,
+            "direction_packet_blob": ART_DIRECTION_PACKET_BLOB,
+            "character_pr2_comment_id": ART_DIRECTION_PR2_COMMENT_ID,
+            "retained_artifact_id": ART_DIRECTION_RETAINED_ARTIFACT_ID,
+            "retained_artifact_sha256": ART_DIRECTION_RETAINED_ARTIFACT_SHA256,
+            "scope": (
+                "visual source-form preference only; review-006 preferred over accepted-E and review-005; "
+                "no source adoption, topology/intersection, anatomy, deformation, runtime or mastery transfer"
+            ),
+            "required_order": [
+                "independent_visual_qa",
+                "exact_review006_geometry_rebind",
+                "rigging_deformation_rebind_after_geometry",
+                "source_adoption_decision",
+            ],
+        },
         "art_qa_decision_questions": [
-            "Does review-006 preserve the accepted-E shoulder mass language while avoiding a rigid or overbuilt upper-torso read?",
-            "Does the wider shoulder / revised elbow relationship read as a coherent neutral A-rest silhouette rather than an arbitrary clearance pose?",
-            "Is the reduced review-005 elbow bend visually preferable without treating straighter as an anatomical rule?",
-            "Does the shoulder-to-arm transition remain balanced from front, top and three-quarter views?",
+            "Independent QA: does the exact retained review-006 packet reproduce the Art-reviewed form identity without corruption?",
+            "Independent QA: does review-006 preserve the accepted-E shoulder mass language without an overbuilt upper-torso read?",
+            "Independent QA: does the wider shoulder / revised elbow relationship remain coherent across front, top and three-quarter views?",
+            "Independent QA: is any concrete Organic-owned defect visible that would justify reopening form mutation?",
         ],
         "separate_geometry_context": {
             "geometry_pr15_head": GEOMETRY_PR15_HEAD,
@@ -164,16 +201,21 @@ def audit_shoulder_review_decision_packet():
         "gates": {
             "exact_parent_review005_review006_identity": "PASS",
             "review006_form_changed_by_this_packet": "NO",
+            "art_direction_form_preference": ART_DIRECTION_DECISION,
+            "independent_visual_qa": "PENDING",
             "visual_acceptance": "NOT_EVALUATED",
+            "combined_visual_acceptance": "NOT_CLAIMED",
             "connected_topology_or_self_intersection": "NOT_EVALUATED",
             "rigging_or_deformation": "NOT_EVALUATED",
             "source_adoption": "NOT_CLAIMED",
         },
         "truth_boundary": [
             "This packet aggregates exact Organic source-form evidence for review; it does not modify Character form, topology, weights, poses, materials or runtime state.",
+            "The Art Direction return is an exact coordination reference to a visual source-form preference; Character CI records it but does not impersonate or re-perform Art review.",
+            "Independent Visual QA remains pending; Art preference is not renamed combined visual acceptance or source adoption.",
             "Landmark angles, distances and offsets are geometric review facts, not anatomy, biology, skeletal-rest-angle or range-of-motion prescriptions.",
             "Geometry PR #15 remains negative evidence for the accepted-E lineage only and is not transferred to review-006.",
-            "No visual acceptance, topology/intersection freedom, rigging, continuous deformation, Animation, runtime, gameplay, CANON, production readiness or Organic mastery is claimed.",
+            "No source adoption, topology/intersection freedom, rigging, continuous deformation, Animation, runtime, gameplay, CANON, production readiness or Organic mastery is claimed.",
         ],
     }
 

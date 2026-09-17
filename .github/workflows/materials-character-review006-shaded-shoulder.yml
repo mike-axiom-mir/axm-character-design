@@ -1,0 +1,157 @@
+name: Materials Character review006 shaded shoulder evidence
+
+on:
+  push:
+    branches: [studio/materials-character-shaded-shoulder-001]
+    paths:
+      - "lookdev/character_review006_shaded_shoulder_review_001.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_shaded_shoulder_observe.gd"
+      - "tools/build_character_review006_shaded_shoulder_evidence.py"
+      - ".github/workflows/materials-character-review006-shaded-shoulder.yml"
+  pull_request:
+    paths:
+      - "lookdev/character_review006_shaded_shoulder_review_001.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_shaded_shoulder_observe.gd"
+      - "tools/build_character_review006_shaded_shoulder_evidence.py"
+      - ".github/workflows/materials-character-review006-shaded-shoulder.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shaded-shoulder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: Checkout exact Materials head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact Rigging parent
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" != ""
+          git merge-base --is-ancestor efa48c344f1b8c9e70c4c5dfdbf4a3031dacd777 HEAD
+          test "$(git rev-parse efa48c344f1b8c9e70c4c5dfdbf4a3031dacd777:src/axm_character_design/review006_shoulder_safe_envelope.py)" = "b1574cc2665d056ffa7b678767e305767ccbbcd9"
+          mkdir -p lookdev-proof/generated
+          git rev-parse HEAD > lookdev-proof/generated/exact-materials-head.txt
+          printf '%s\n' efa48c344f1b8c9e70c4c5dfdbf4a3031dacd777 > lookdev-proof/generated/exact-rigging-parent-head.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact shaded-shoulder payload
+        env:
+          PYTHONPATH: src
+        run: python tools/build_character_review006_shaded_shoulder_evidence.py
+
+      - name: Prove Materials contract drift fails closed
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          import json, subprocess, sys, tempfile
+          from pathlib import Path
+          src=Path('lookdev/character_review006_shaded_shoulder_review_001.json')
+          data=json.loads(src.read_text())
+          data['material']['roughness']=0.71
+          bad=Path(tempfile.mkdtemp())/'bad.json'
+          bad.write_text(json.dumps(data))
+          proc=subprocess.run([sys.executable,'tools/build_character_review006_shaded_shoulder_evidence.py','--contract',str(bad),'--out',str(bad.parent/'payload.json')],env={**__import__('os').environ,'PYTHONPATH':'src'},capture_output=True,text=True)
+          assert proc.returncode != 0,(proc.stdout,proc.stderr)
+          assert 'bounded neutral review material drift' in (proc.stdout+proc.stderr),(proc.stdout,proc.stderr)
+          print('material-policy drift rejected as expected')
+          PY
+
+      - name: Download pinned Godot 4.7.2
+        if: matrix.python-version == '3.11'
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        if: matrix.python-version == '3.11'
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Render exact shoulder normal comparison in Godot
+        if: matrix.python-version == '3.11'
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/character-review006-shaded-*.png lookdev-proof/character-review006-shaded-shoulder-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script character_review006_shaded_shoulder_observe.gd
+
+      - name: Validate real target-host normal evidence
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('lookdev-proof')
+          r=json.loads((root/'character-review006-shaded-shoulder-runtime-receipt.json').read_text())
+          assert r['state']=='PASS',r
+          assert r['result']=='PASS_CHARACTER_REVIEW006_POSE_RECOMPUTED_SMOOTH_NORMAL_TARGET_HOST_DIAGNOSTIC',r
+          assert r['neutral_control_exact_all_contexts'] is True,r
+          assert r['safe_pose_recomputed_normals_visible_all_contexts'] is True,r
+          assert r['negative_control_visible_all_contexts'] is True,r
+          for context,row in r['comparisons']['0'].items():
+              assert row['frozen_to_pose_recomputed']['changed_pixels_raw']==0,(context,row)
+          for pose in ('-40','36'):
+              for context,row in r['comparisons'][pose].items():
+                  assert row['frozen_to_pose_recomputed']['changed_pixels_gt_1lsb']>0,(pose,context,row)
+          for pose,contexts in r['comparisons'].items():
+              for context,row in contexts.items():
+                  assert row['candidate_to_inverted_negative']['changed_pixels_gt_1lsb']>0,(pose,context,row)
+          assert r['truth_boundary']['production_normals_or_tangents'] is False,r
+          assert r['truth_boundary']['full_body_shading_proven'] is False,r
+          print(json.dumps(r,indent=2))
+          PY
+
+      - name: Retain exact shaded shoulder evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-shaded-shoulder-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            lookdev/character_review006_shaded_shoulder_review_001.json
+            lookdev-proof/character_review006_shaded_shoulder_observe.gd
+            lookdev-proof/generated/character_review006_shaded_shoulder_payload.json
+            lookdev-proof/generated/exact-materials-head.txt
+            lookdev-proof/generated/exact-rigging-parent-head.txt
+            lookdev-proof/character-review006-shaded-shoulder-runtime-receipt.json
+            lookdev-proof/character-review006-shaded-*.png
+          if-no-files-found: warn
+          retention-days: 60

@@ -79,11 +79,25 @@ jobs:
           profile_source="62a60ee6b930d13898203d37b0cc9dab6b13d99d"
           dense_predecessor="735df38e0fb4a38886da940a2de7045cc4321a28"
           test "$actual" = "$expected"
+
+          # The selected opening-repair Geometry head is the receiving ancestor.
           git merge-base --is-ancestor "$geometry" HEAD
-          git merge-base --is-ancestor "$geometry_evidence" HEAD
-          git merge-base --is-ancestor "$historical_rigging" HEAD
-          git merge-base --is-ancestor "$profile_source" HEAD
+
+          # These exact evidence/profile donors are intentionally divergent siblings.
+          # Require their commits to exist and preserve the shared receiving root;
+          # do not manufacture ancestry that is not present in the repository graph.
+          for donor in "$geometry_evidence" "$historical_rigging" "$profile_source"; do
+            git cat-file -e "${donor}^{commit}"
+            if git merge-base --is-ancestor "$donor" HEAD; then
+              echo "divergent donor unexpectedly became a Rigging ancestor: $donor" >&2
+              exit 1
+            fi
+          done
+          test "$(git merge-base "$geometry_evidence" HEAD)" = "$geometry"
+
+          # The dense sampled predecessor belongs to this Rigging lane and must remain ancestry.
           git merge-base --is-ancestor "$dense_predecessor" HEAD
+
           printf '%s\n' "$actual" > build/review006-continuous-vertex-only/exact-head.txt
           printf '%s\n' "$geometry" > build/review006-continuous-vertex-only/exact-geometry-head.txt
           printf '%s\n' "$geometry_evidence" > build/review006-continuous-vertex-only/current-geometry-evidence-head.txt

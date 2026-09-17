@@ -22,8 +22,9 @@ class Review006ShoulderVertexOnlyNeighborConeMarginTests(unittest.TestCase):
         self.assertEqual(self.audit["status"], STATUS)
         guard = self.audit["sampled_vertex_only_neighbor_guard"]
         self.assertEqual(guard["range_deg"], [SAFE_START_DEG, SAFE_END_DEG])
-        self.assertEqual(guard["step_deg"], SAMPLE_STEP_DEG)
-        self.assertEqual(guard["sample_count_per_side"], 1532)
+        self.assertEqual(guard["regular_step_deg"], SAMPLE_STEP_DEG)
+        self.assertTrue(guard["exact_safe_endpoint_included"])
+        self.assertEqual(guard["sample_count_per_side"], 308)
         self.assertTrue(guard["all_sampled_vertex_only_pairs_cone_separated"])
         self.assertTrue(guard["bilateral_pair_count_match"])
         self.assertTrue(guard["bilateral_representative_pose_mirror"])
@@ -32,7 +33,7 @@ class Review006ShoulderVertexOnlyNeighborConeMarginTests(unittest.TestCase):
         )
         for side in ("L", "R"):
             result = guard["sides"][side]
-            self.assertEqual(result["sample_count"], 1532)
+            self.assertEqual(result["sample_count"], 308)
             self.assertEqual(result["vertex_only_neighbor_pair_count"], 845)
             self.assertEqual(result["uncertified_sample_count"], 0)
             self.assertGreater(
@@ -80,7 +81,7 @@ class Review006ShoulderVertexOnlyNeighborConeMarginTests(unittest.TestCase):
 
     def test_contract_drift_fails_closed(self):
         drifted = sampled_vertex_only_neighbor_contract()
-        drifted["sampled_vertex_only_guard"]["step_deg"] = 0.10
+        drifted["sampled_vertex_only_guard"]["regular_step_deg"] = 0.50
         with self.assertRaises(ValueError):
             audit_review006_sampled_vertex_only_neighbor_cone_margin(drifted)
 

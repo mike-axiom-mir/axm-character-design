@@ -1,0 +1,70 @@
+name: Geometry Character shoulder third-flip search evidence
+
+on:
+  push:
+    branches:
+      - studio/geometry-character-shoulder-third-flip-extension-001
+  pull_request:
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Character head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile
+        run: python -m compileall -q src tools tests
+
+      - name: Full Character unit suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+      - name: Build exact Geometry third-flip search evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: >-
+          python tools/build_connected_shoulder_third_flip_search_evidence.py
+          --out evidence/character-shoulder-third-flip-search-001
+
+      - name: Bind retained evidence to exact lineage
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          two_flip="c3735e8785348c1d23b4de048c82f505b6acf4f0"
+          geometry="b65d73e514c23670204915bde8ce935a3b417574"
+          rigging="329c485f567faeeb79198c7b1ebc2974b3c3db60"
+          test "$actual" = "$expected"
+          git merge-base --is-ancestor "$two_flip" HEAD
+          git merge-base --is-ancestor "$geometry" HEAD
+          git merge-base --is-ancestor "$rigging" HEAD
+          git cat-file -e "$two_flip^{commit}"
+          git cat-file -e "$geometry^{commit}"
+          git cat-file -e "$rigging^{commit}"
+          printf '%s\n' "$actual" > evidence/character-shoulder-third-flip-search-001/exact-head.txt
+          printf '%s\n' "$two_flip" > evidence/character-shoulder-third-flip-search-001/exact-two-flip-search-head.txt
+          printf '%s\n' "$geometry" > evidence/character-shoulder-third-flip-search-001/exact-geometry-stitch-head.txt
+          printf '%s\n' "$rigging" > evidence/character-shoulder-third-flip-search-001/exact-rigging-stitch-rebind-head.txt
+
+      - name: Upload exact retained Geometry third-flip search evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-shoulder-third-flip-search-001-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/character-shoulder-third-flip-search-001/
+          if-no-files-found: error

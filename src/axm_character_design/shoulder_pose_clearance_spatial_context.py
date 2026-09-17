@@ -202,7 +202,7 @@ def audit_shoulder_pose_clearance_spatial_context(review006=None):
 def _project_front(point, panel_x):
     x = float(point[0])
     z = float(point[2])
-    return panel_x + 180.0 + (x * 250.0), 245.0 - ((z - 1.28) * 390.0)
+    return panel_x + 170.0 + (x * 250.0), 245.0 - ((z - 1.28) * 390.0)
 
 
 def _panel(source, context, panel_x, title):

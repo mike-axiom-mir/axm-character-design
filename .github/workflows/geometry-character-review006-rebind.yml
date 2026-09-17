@@ -1,0 +1,48 @@
+name: Geometry Character review006 exact rebind
+
+on:
+  pull_request:
+    paths:
+      - "src/axm_character_design/review006_connected_geometry.py"
+      - "src/axm_character_design/review006_self_intersection.py"
+      - "tests/test_review006_connected_geometry.py"
+      - "tools/build_review006_geometry_rebind_evidence.py"
+      - ".github/workflows/geometry-character-review006-rebind.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q src tests tools
+      - name: Full repository unit suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Build exact review006 Geometry evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: |
+          rm -rf build/review006-geometry-rebind
+          python tools/build_review006_geometry_rebind_evidence.py build/review006-geometry-rebind
+          git rev-parse HEAD > build/review006-geometry-rebind/exact-head.txt
+      - name: Upload retained exact-head evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-geometry-rebind
+          path: build/review006-geometry-rebind
+          if-no-files-found: error
+          retention-days: 90

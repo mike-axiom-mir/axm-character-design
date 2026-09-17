@@ -157,6 +157,15 @@ def build_evidence(out: Path, uc_root: Path, runtime_donor_dir: Path) -> dict:
     if not negative_rejected:
         raise ValueError("one-byte bilateral payload mismatch did not fail closed")
 
+    if len(control.times) != 321 or not math.isclose(control.times[0], 0.0, abs_tol=1e-12):
+        raise ValueError("review-006 dense source sample contract drift")
+    source_duration_s = float(control.times[-1])
+    if not math.isclose(source_duration_s, 2.0, abs_tol=1e-12):
+        raise ValueError("review-006 dense source duration drift")
+    source_dense_hz = int(round((len(control.times) - 1) / source_duration_s))
+    if source_dense_hz != 160:
+        raise ValueError("review-006 dense source rate drift")
+
     sys.path.insert(0, str(uc_root / "src"))
     from axm_uc.game_pose_runtime import load_game_pose_glb
 
@@ -214,6 +223,13 @@ def build_evidence(out: Path, uc_root: Path, runtime_donor_dir: Path) -> dict:
             "accessors": len(candidate.document["accessors"]),
             "buffer_views": len(candidate.document["bufferViews"]),
             "bilateral_release_scale_shared_accessor": left_scale,
+        },
+        "source_dense_sampling": {
+            "sample_count": len(control.times),
+            "sample_rate_hz": source_dense_hz,
+            "duration_s": source_duration_s,
+            "first_time_s": float(control.times[0]),
+            "last_time_s": float(control.times[-1]),
         },
         "before_after": {
             "file_bytes_saved": len(control.bytes) - len(candidate.bytes),

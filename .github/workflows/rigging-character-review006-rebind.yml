@@ -11,6 +11,7 @@ on:
       - "src/axm_character_design/review006_shoulder_continuous_clearance.py"
       - "src/axm_character_design/review006_shoulder_edge_adjacent_fold_margin.py"
       - "src/axm_character_design/review006_shoulder_continuous_edge_adjacent_fold.py"
+      - "src/axm_character_design/review006_shoulder_vertex_only_neighbor_cone_margin.py"
       - "src/axm_character_design/review006_connected_geometry.py"
       - "src/axm_character_design/review006_self_intersection.py"
       - "tests/test_review006_shoulder_rigging_rebind.py"
@@ -21,6 +22,7 @@ on:
       - "tests/test_review006_shoulder_continuous_clearance.py"
       - "tests/test_review006_shoulder_edge_adjacent_fold_margin.py"
       - "tests/test_review006_shoulder_continuous_edge_adjacent_fold.py"
+      - "tests/test_review006_shoulder_vertex_only_neighbor_cone_margin.py"
       - "tools/build_review006_rigging_rebind_evidence.py"
       - ".github/workflows/rigging-character-review006-rebind.yml"
   workflow_dispatch:

@@ -10,8 +10,8 @@ const FRAME_SIZE := Vector2i(900, 700)
 const BACKGROUND := Color(0.035, 0.04, 0.05, 1.0)
 const POSITION_CONTROL_MAX_XOR_FRACTION := 0.0005
 const NEUTRAL_NORMAL_MAX_MEAN_DELTA := 0.002
-const COHERENT_HYPOTHESIS_MAX_MEAN_DELTA := 0.005
-const WINNER_MARGIN := 0.00001
+const COHERENT_HYPOTHESIS_MAX_MEAN_DELTA := 0.002
+const MIN_NONRIG_SEPARATION_RATIO := 100.0
 
 var payload: Dictionary = {}
 
@@ -288,7 +288,14 @@ func choose_winner(rows: Dictionary) -> Dictionary:
     var best: Dictionary = ordered[0]
     var second: Dictionary = ordered[1]
     var margin := float(second["mean"]) - float(best["mean"])
-    var coherent := margin >= WINNER_MARGIN and float(best["mean"]) <= COHERENT_HYPOTHESIS_MAX_MEAN_DELTA
+    # The retained normal probe is encoded through an 8-bit render target. The
+    # two Rigging-derived hypotheses differ by less than one display LSB in
+    # source-vector space, so an arbitrary per-view absolute winner margin
+    # would erase a repeatable ordering. Keep the classifier fail-closed on
+    # ties, require the selected hypothesis to be independently close, and let
+    # the run-level gate require the same signed relation in every deformed
+    # view plus a large separation from non-rig controls.
+    var coherent := margin > 0.0 and float(best["mean"]) <= COHERENT_HYPOTHESIS_MAX_MEAN_DELTA
     return {
         "winner": String(best["name"]) if coherent else "unresolved",
         "best_mean_abs_rgb_channel_delta": float(best["mean"]),
@@ -329,6 +336,9 @@ func run_observer() -> void:
             "unresolved": 0
         },
         "deformed_comparison_count": 0,
+        "linear_beats_inverse_count": 0,
+        "minimum_linear_to_nonrig_separation_ratio": INF,
+        "maximum_linear_mean_abs_rgb_channel_delta": 0.0,
         "truth_boundary": payload["truth_boundary"]
     }
     for sample_key in SAMPLE_KEYS:
@@ -375,6 +385,22 @@ func run_observer() -> void:
                 receipt["deformed_comparison_count"] += 1
                 var winner_name := String(winner["winner"])
                 receipt["deformed_winner_counts"][winner_name] = int(receipt["deformed_winner_counts"][winner_name]) + 1
+                var linear_mean := float(diffs["linear_gradient"]["mean_abs_rgb_channel_delta"])
+                var inverse_mean := float(diffs["inverse_transpose"]["mean_abs_rgb_channel_delta"])
+                var nonrig_best := minf(
+                    float(diffs["pose_recomputed"]["mean_abs_rgb_channel_delta"]),
+                    float(diffs["frozen_neutral"]["mean_abs_rgb_channel_delta"])
+                )
+                if linear_mean < inverse_mean:
+                    receipt["linear_beats_inverse_count"] += 1
+                receipt["minimum_linear_to_nonrig_separation_ratio"] = minf(
+                    float(receipt["minimum_linear_to_nonrig_separation_ratio"]),
+                    nonrig_best / maxf(linear_mean, 1e-15)
+                )
+                receipt["maximum_linear_mean_abs_rgb_channel_delta"] = maxf(
+                    float(receipt["maximum_linear_mean_abs_rgb_channel_delta"]),
+                    linear_mean
+                )
             if sample_key == "160":
                 receipt["neutral_gate"] = bool(receipt["neutral_gate"]) and float(diffs["linear_gradient"]["mean_abs_rgb_channel_delta"]) <= NEUTRAL_NORMAL_MAX_MEAN_DELTA
             receipt["comparisons"][sample_key][context] = {
@@ -393,8 +419,13 @@ func run_observer() -> void:
         receipt["result"] = "HOLD_CHARACTER_REVIEW006_TARGET_ENGINE_DIRECTION_FRAME__NEUTRAL_NORMAL_BUFFER_GATE_NOT_CLOSED"
     elif not bool(receipt["inverted_negative_visible_all_deformed_contexts"]):
         receipt["result"] = "HOLD_CHARACTER_REVIEW006_TARGET_ENGINE_DIRECTION_FRAME__OBSERVER_SENSITIVITY_NOT_PROVEN"
-    elif int(counts["linear_gradient"]) == total:
-        receipt["result"] = "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENT_WITH_RIGGING_LINEAR_GRADIENT_HYPOTHESIS"
+    elif (
+        int(counts["linear_gradient"]) == total
+        and int(receipt["linear_beats_inverse_count"]) == total
+        and float(receipt["minimum_linear_to_nonrig_separation_ratio"]) >= MIN_NONRIG_SEPARATION_RATIO
+        and float(receipt["maximum_linear_mean_abs_rgb_channel_delta"]) <= COHERENT_HYPOTHESIS_MAX_MEAN_DELTA
+    ):
+        receipt["result"] = "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENTLY_NEARER_RIGGING_LINEAR_GRADIENT_REFERENCE__INVERSE_TRANSPOSE_SEPARATION_SUB_LSB"
     elif int(counts["inverse_transpose"]) == total:
         receipt["result"] = "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENT_WITH_RIGGING_INVERSE_TRANSPOSE_HYPOTHESIS"
     elif int(counts["pose_recomputed"]) == total:

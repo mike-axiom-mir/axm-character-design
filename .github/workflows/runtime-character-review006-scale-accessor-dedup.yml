@@ -1,0 +1,90 @@
+name: Runtime Character review006 scale accessor dedup budget
+
+on:
+  pull_request:
+    paths:
+      - "tools/build_runtime_review006_scale_accessor_dedup.py"
+      - "tools/build_runtime_review006_scale_accessor_dedup_v2.py"
+      - ".github/workflows/runtime-character-review006-scale-accessor-dedup.yml"
+  workflow_dispatch:
+
+jobs:
+  full-character-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+  exact-current-uc-budget:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Runtime head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Bind exact Technical Art producer
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor c007c327f2613989581192602338435b67b748d7 HEAD
+          test "$(git rev-parse HEAD:src/axm_character_design/review006_uc_skin_transport.py)" = "831fd7522ec2a8783862da653d6f12465252a3b2"
+      - name: Checkout exact current Universal Creation
+        uses: actions/checkout@v4
+        with:
+          repository: mike-axiom-mir/axm-universal-creation
+          ref: fed35116c1aabe54789f1197b7b2423b3b516169
+          path: _uc
+          fetch-depth: 0
+      - name: Bind exact current UC pose receiver
+        run: |
+          set -euo pipefail
+          test "$(git -C _uc rev-parse HEAD)" = "fed35116c1aabe54789f1197b7b2423b3b516169"
+          test "$(git -C _uc rev-parse HEAD:src/axm_uc/game_pose_runtime.py)" = "dee5db003a56a0a5f55092c1b3db50f56a22de7e"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build exact import-budget and receiver evidence
+        env:
+          PYTHONPATH: src:_uc/src:tools
+        run: |
+          set -euo pipefail
+          rm -rf evidence/runtime-character-review006-scale-accessor-dedup
+          python tools/build_runtime_review006_scale_accessor_dedup_v2.py \
+            --out evidence/runtime-character-review006-scale-accessor-dedup \
+            --uc-root _uc
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          row = json.loads(Path("evidence/runtime-character-review006-scale-accessor-dedup/result.json").read_text())
+          assert row["status"] == "PASS_CHARACTER_REVIEW006_BILATERAL_RELEASE_SCALE_ACCESSOR_DEDUP_IMPORT_BUDGET__HOLD_TARGET_ENGINE_ART_QA_ADOPTION"
+          assert row["control"]["glb_bytes"] == 44032
+          assert row["before_after"]["binary_bytes_saved"] == 3852
+          assert row["before_after"]["file_bytes_saved"] > 3852
+          assert row["uc_receiver_equivalence"]["semantic_shape_equal"] is True
+          assert row["uc_receiver_equivalence"]["maximum_position_delta_m"] == 0.0
+          assert row["uc_receiver_equivalence"]["maximum_skin_palette_component_delta"] == 0.0
+          assert row["uc_receiver_equivalence"]["changed_position_samples"] == 0
+          assert row["uc_receiver_equivalence"]["changed_palette_samples"] == 0
+          assert row["negative_control"]["non_identical_payload_rejected"] is True
+          assert row["visual_tradeoff"]["rendered_frame_delta"] == "NOT_REMEASURED"
+          PY
+      - name: Upload retained Runtime evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-runtime-scale-accessor-dedup-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/runtime-character-review006-scale-accessor-dedup
+          if-no-files-found: error
+          retention-days: 30

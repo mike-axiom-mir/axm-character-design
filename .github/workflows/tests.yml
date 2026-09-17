@@ -1,0 +1,107 @@
+name: Character organic form baseline
+
+on:
+  push:
+    branches:
+      - studio/organic-character-neutral-a-001
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q src tools tests
+      - name: Unit tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Build exact retained evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_character_baseline.py --out evidence/character-neutral-a-001
+      - name: Build exact flex transition audit
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_flex_transition_audit.py --out evidence/character-neutral-a-001
+      - name: Build bounded shoulder bridge candidate evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_bridge_candidate.py --out evidence/character-neutral-a-001
+      - name: Build restrained shoulder bridge refinement evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_bridge_refinement.py --out evidence/character-neutral-a-001
+      - name: Build directional shoulder transition profile evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_transition_profile.py --out evidence/character-neutral-a-001
+      - name: Build feathered shoulder transition evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_transition_feathered.py --out evidence/character-neutral-a-001
+      - name: Build accepted shoulder source-lineage migration evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_source_lineage.py --out evidence/character-neutral-a-001
+      - name: Build shoulder pose-clearance review evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_pose_clearance_candidate.py --out evidence/character-neutral-a-001
+      - name: Build shoulder pose-clearance refinement evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_pose_clearance_refinement.py --out evidence/character-neutral-a-001
+      - name: Build shoulder pose-clearance spatial context
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_pose_clearance_spatial_context.py --out evidence/character-neutral-a-001
+      - name: Build shoulder neutral mass-interface context
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_mass_interface_context.py --out evidence/character-neutral-a-001
+      - name: Build shoulder pose-clearance neutral filled review packet
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_pose_clearance_visual_review.py --out evidence/character-neutral-a-001
+      - name: Build shoulder pose elbow-chain context
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_pose_elbow_chain_context.py --out evidence/character-neutral-a-001
+      - name: Build exact shoulder review decision packet
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_review_decision_packet.py --out evidence/character-neutral-a-001
+      - name: Bind evidence to exact checked-out head
+        if: matrix.python-version == '3.11'
+        run: git rev-parse HEAD > evidence/character-neutral-a-001/exact-head.txt
+      - name: Upload exact retained evidence
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-neutral-a-001-evidence
+          path: evidence/character-neutral-a-001/
+          if-no-files-found: error

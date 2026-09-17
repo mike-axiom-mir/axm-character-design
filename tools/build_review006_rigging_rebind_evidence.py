@@ -4,6 +4,9 @@ from __future__ import annotations
 import argparse
 import json
 
+from axm_character_design.review006_shoulder_continuous_clearance import (
+    build_review006_continuous_nonadjacent_clearance_evidence,
+)
 from axm_character_design.review006_shoulder_deformation_gradient_frame import (
     build_review006_deformation_gradient_frame_evidence,
 )
@@ -22,7 +25,8 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "Build exact review-006 Rigging structural, sub-degree boundary, "
-            "deformation-gradient frame and neutral bind-frame evidence."
+            "deformation-gradient frame, neutral bind-frame and continuous "
+            "nonadjacent-clearance evidence."
         )
     )
     parser.add_argument("out_dir")
@@ -32,6 +36,7 @@ def main():
     subdegree = build_review006_positive_subdegree_boundary_evidence(args.out_dir)
     frame = build_review006_deformation_gradient_frame_evidence(args.out_dir)
     neutral = build_review006_neutral_bind_frame_evidence(args.out_dir)
+    continuous = build_review006_continuous_nonadjacent_clearance_evidence(args.out_dir)
     print(json.dumps({
         "status": safe["status"],
         "safe_envelope_deg": safe["safe_envelope"]["range_deg"],
@@ -55,6 +60,13 @@ def main():
         "neutral_gradient_identity_delta": neutral["neutral_closure"]["max_gradient_identity_component_delta"],
         "neutral_normal_matrix_identity_delta": neutral["neutral_closure"]["max_normal_matrix_identity_component_delta"],
         "neutral_negative_control_rejected": neutral["negative_control"]["rejected"],
+        "continuous_clearance_status": continuous["status"],
+        "continuous_clearance_range_deg": continuous["continuous_clearance"]["range_deg"],
+        "continuous_nonadjacent_clearance_proven_for_all_real_angles": continuous["continuous_clearance"]["nonadjacent_triangle_clearance_proven_for_all_real_angles"],
+        "continuous_clearance_left_min_slack_m": continuous["continuous_clearance"]["sides"]["L"]["minimum_certificate_slack_m"],
+        "continuous_clearance_right_min_slack_m": continuous["continuous_clearance"]["sides"]["R"]["minimum_certificate_slack_m"],
+        "continuous_contact_bracket_deg": continuous["contact_transition"]["transition_bracket_deg"],
+        "continuous_negative_control_rejected": continuous["negative_control"]["rejected"],
     }, sort_keys=True))
 
 

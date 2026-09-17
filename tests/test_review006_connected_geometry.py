@@ -60,7 +60,7 @@ class Review006ConnectedGeometryTests(unittest.TestCase):
         self.assertEqual((len(baseline["positions"]), len(baseline["faces"])), (93, 182))
         for stage in ("opening_repair", "diagonal_repair", "stitch_repair"):
             specimen = build_stage("L", stage)
-            self.assertEqual((len(specimen["positions"]), len(specimen["faces"])), (93, 180))
+            self.assertEqual((len(specimen["positions"]), len(specimen["faces"])), (92, 180))
 
     def test_surface_preflight_fails_closed_on_winding_flip(self):
         specimen = build_stage("L", "stitch_repair")

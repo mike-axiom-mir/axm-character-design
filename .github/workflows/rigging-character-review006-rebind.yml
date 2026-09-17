@@ -7,12 +7,14 @@ on:
       - "src/axm_character_design/review006_shoulder_safe_envelope.py"
       - "src/axm_character_design/review006_shoulder_subdegree_boundary.py"
       - "src/axm_character_design/review006_shoulder_deformation_gradient_frame.py"
+      - "src/axm_character_design/review006_shoulder_neutral_bind_frame.py"
       - "src/axm_character_design/review006_connected_geometry.py"
       - "src/axm_character_design/review006_self_intersection.py"
       - "tests/test_review006_shoulder_rigging_rebind.py"
       - "tests/test_review006_shoulder_safe_envelope.py"
       - "tests/test_review006_shoulder_subdegree_boundary.py"
       - "tests/test_review006_shoulder_deformation_gradient_frame.py"
+      - "tests/test_review006_shoulder_neutral_bind_frame.py"
       - "tools/build_review006_rigging_rebind_evidence.py"
       - ".github/workflows/rigging-character-review006-rebind.yml"
   workflow_dispatch:
@@ -43,7 +45,7 @@ jobs:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
-      - name: Build exact review006 Rigging safe-envelope + subdegree + frame evidence
+      - name: Build exact review006 Rigging safe-envelope + subdegree + frame + neutral closure evidence
         if: matrix.python-version == '3.11'
         env:
           PYTHONPATH: src
@@ -62,9 +64,11 @@ jobs:
           discovery="93e957eca152c45286924da44e4f085af2de69b2"
           historical_rigging="329c485f567faeeb79198c7b1ebc2974b3c3db60"
           profile_source="62a60ee6b930d13898203d37b0cc9dab6b13d99d"
+          owner_frame_parent="a218b2cf2727482a78db8ab21afcf1bb72637bcc"
           test "$actual" = "$expected"
           git merge-base --is-ancestor "$geometry" HEAD
           git merge-base --is-ancestor "$discovery" HEAD
+          git merge-base --is-ancestor "$owner_frame_parent" HEAD
           git cat-file -e "$historical_rigging^{commit}"
           git cat-file -e "$profile_source^{commit}"
           printf '%s\n' "$actual" > build/review006-rigging-rebind/exact-head.txt
@@ -72,6 +76,7 @@ jobs:
           printf '%s\n' "$discovery" > build/review006-rigging-rebind/exact-discovery-head.txt
           printf '%s\n' "$historical_rigging" > build/review006-rigging-rebind/exact-historical-rigging-head.txt
           printf '%s\n' "$profile_source" > build/review006-rigging-rebind/exact-profile-source-head.txt
+          printf '%s\n' "$owner_frame_parent" > build/review006-rigging-rebind/exact-owner-frame-parent-head.txt
 
       - name: Upload retained exact-head Rigging evidence
         if: matrix.python-version == '3.11'

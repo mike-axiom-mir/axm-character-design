@@ -1,0 +1,50 @@
+{
+  "schema": "axm.character-review006-current-motion-direction-frame-lookdev/v0.1",
+  "semantic": "current_exact_character_shaded_motion_direction_frame_review",
+  "technical_art_head": "1c021d40d7d606f6fb2a29e69f9353640aa33f60",
+  "animation_head": "9519be55581c009fd800d175677d9b50ee6926e6",
+  "rigging_head": "fa16c44b1a488d43842470fc9f30c5fb5e98cab6",
+  "materials_static_reference_head": "e450684b398f8e5b0e23c4cbf717e3475dd4d5ee",
+  "materials_normal_tool_blob": "843c0e1866172dd8b6c5ab0f23d69d1e469562f7",
+  "receiver": {
+    "target": "Godot 4.7.2 GL Compatibility direct glTF skin import",
+    "target_mode": "actual imported skinned GLB shaded by target-host deformed direction frames",
+    "reference_mode": "exact owner positions with area-weighted indexed smooth normals recomputed after pose",
+    "stale_control_mode": "exact owner positions with neutral 0-degree smooth normals reused after pose",
+    "position_control": "unshaded target import versus exact owner-position reference",
+    "source_geometry_changed": false,
+    "rigging_changed": false,
+    "animation_changed": false,
+    "material_scalars_changed": false
+  },
+  "samples": [
+    {"sample_index": 80, "expected_time_s": 0.5, "expected_angle_deg": -30.0},
+    {"sample_index": 160, "expected_time_s": 1.0, "expected_angle_deg": 0.0},
+    {"sample_index": 240, "expected_time_s": 1.5, "expected_angle_deg": 30.0}
+  ],
+  "contexts": ["front", "three_quarter", "grazing"],
+  "material": {
+    "semantic": "neutral_skin_response_review_only",
+    "albedo_srgb": [0.56, 0.43, 0.36],
+    "metallic": 0.0,
+    "roughness": 0.62
+  },
+  "classification": {
+    "pose_following_preferred_when": "target shaded response is consistently closer to the pose-recomputed reference than to the frozen-neutral control after position-control alignment is shown",
+    "frozen_like_when": "target shaded response is consistently closer to the frozen-neutral control",
+    "mixed_when": "contexts disagree or position-control mismatch is too large to isolate direction-frame behavior",
+    "universal_numeric_threshold": false
+  },
+  "truth_boundary": {
+    "production_skin_material": false,
+    "production_normals_or_tangents": false,
+    "tangent_space_detail": false,
+    "full_body_shading_proven": false,
+    "arbitrary_pose_correctness": false,
+    "target_device_runtime_acceptance": false,
+    "art_direction_final_acceptance": false,
+    "visual_qa_final_acceptance": false,
+    "canon": false,
+    "production_ready": false
+  }
+}

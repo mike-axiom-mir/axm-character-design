@@ -1,0 +1,214 @@
+name: Materials Character review006 current target shaded motion reference evidence
+
+on:
+  push:
+    branches: [studio/materials-character-shaded-shoulder-001]
+    paths:
+      - "lookdev/character_review006_current_target_shaded_motion_reference_003.json"
+      - "tools/build_character_review006_current_target_shaded_motion_reference_evidence.py"
+      - "lookdev-proof/character_review006_current_target_shaded_motion_reference_observe.gd"
+      - "lookdev-proof/project.godot"
+      - ".github/workflows/materials-character-review006-current-target-shaded-motion-reference.yml"
+  pull_request:
+    paths:
+      - "lookdev/character_review006_current_target_shaded_motion_reference_003.json"
+      - "tools/build_character_review006_current_target_shaded_motion_reference_evidence.py"
+      - "lookdev-proof/character_review006_current_target_shaded_motion_reference_observe.gd"
+      - "lookdev-proof/project.godot"
+      - ".github/workflows/materials-character-review006-current-target-shaded-motion-reference.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  current-target-shaded-motion-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: Checkout exact Materials head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Bind exact owner evidence identities
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin 36744749a592e067a119f3349a499d65f25af134
+          git fetch --no-tags origin 4efa5772ee63f62d7a7e5b4ef6688550034b4659
+          test "$(git rev-parse 36744749a592e067a119f3349a499d65f25af134:tools/build_review006_target_engine_direction_frame_hypothesis_evidence.py)" = "c0089c078585556e4b00bc8f033340cddaa1c9d4"
+          test "$(git ls-remote https://github.com/mike-axiom-mir/axm-universal-creation.git refs/heads/main | cut -f1)" = "41b4d9134e4d2e5f4fadaada2a1d6a56eed92ab0"
+          mkdir -p lookdev-proof/generated
+          git rev-parse HEAD > lookdev-proof/generated/exact-materials-head.txt
+          printf '%s\n' 36744749a592e067a119f3349a499d65f25af134 > lookdev-proof/generated/exact-technical-art-head.txt
+          printf '%s\n' 4efa5772ee63f62d7a7e5b4ef6688550034b4659 > lookdev-proof/generated/exact-rigging-head.txt
+          printf '%s\n' 41b4d9134e4d2e5f4fadaada2a1d6a56eed92ab0 > lookdev-proof/generated/exact-uc-head.txt
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact current target shaded-motion payload
+        env:
+          PYTHONPATH: src
+        run: python tools/build_character_review006_current_target_shaded_motion_reference_evidence.py
+
+      - name: Prove material retune fails closed
+        env:
+          PYTHONPATH: src
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys, tempfile
+          from pathlib import Path
+          source = Path("lookdev/character_review006_current_target_shaded_motion_reference_003.json")
+          data = json.loads(source.read_text())
+          data["material"]["roughness"] = 0.63
+          temp = Path(tempfile.mkdtemp())
+          bad = temp / "bad-contract.json"
+          bad.write_text(json.dumps(data))
+          proc = subprocess.run(
+              [sys.executable, "tools/build_character_review006_current_target_shaded_motion_reference_evidence.py",
+               "--contract", str(bad), "--out-dir", str(temp / "out")],
+              env={**os.environ, "PYTHONPATH": "src"}, capture_output=True, text=True
+          )
+          assert proc.returncode != 0, (proc.stdout, proc.stderr)
+          assert "review roughness drift" in (proc.stdout + proc.stderr), (proc.stdout, proc.stderr)
+          print("material retune rejected as expected")
+          PY
+
+      - name: Retrieve exact retained Technical Art direction-frame proof
+        if: matrix.python-version == '3.11'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA256: 2c8741ceb1e7bdb0866ad3505dc1ec37ea26f59c420980f480a4a48011e7374a
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/ta-proof /tmp/ta-proof.zip
+          mkdir -p /tmp/ta-proof
+          gh api repos/mike-axiom-mir/axm-character-design/actions/artifacts/10500419469/zip > /tmp/ta-proof.zip
+          echo "$EXPECTED_SHA256  /tmp/ta-proof.zip" | sha256sum --check --strict
+          unzip -q /tmp/ta-proof.zip -d /tmp/ta-proof
+          mkdir -p lookdev-proof/generated/technical-art-target-normal-proof
+          receipt="$(find /tmp/ta-proof -type f -name 'character-review006-target-engine-direction-frame-hypothesis-runtime-receipt.json' -print -quit)"
+          test -n "$receipt"
+          cp "$receipt" lookdev-proof/generated/technical-art-target-normal-proof/
+          find /tmp/ta-proof -type f -name 'character-review006-target-engine-direction-frame-*.png' -exec cp {} lookdev-proof/generated/technical-art-target-normal-proof/ \;
+          printf '%s\n' "$EXPECTED_SHA256" > lookdev-proof/generated/technical-art-target-normal-proof/exact-artifact-sha256.txt
+          printf '%s\n' 10500419469 > lookdev-proof/generated/technical-art-target-normal-proof/exact-artifact-id.txt
+
+      - name: Validate exact Technical Art direction-frame boundary
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("lookdev-proof/generated/technical-art-target-normal-proof")
+          receipt = json.loads((root / "character-review006-target-engine-direction-frame-hypothesis-runtime-receipt.json").read_text())
+          expected = "PASS_CHARACTER_REVIEW006_GODOT_TARGET_NORMAL_BUFFER_CONSISTENTLY_NEARER_RIGGING_LINEAR_GRADIENT_REFERENCE__INVERSE_TRANSPOSE_SEPARATION_SUB_LSB"
+          assert receipt["state"] == "PASS_DIAGNOSTIC", receipt
+          assert receipt["result"] == expected, receipt
+          assert receipt["linear_beats_inverse_count"] == 6, receipt
+          assert receipt["minimum_linear_to_nonrig_separation_ratio"] >= 100.0, receipt
+          assert receipt["maximum_linear_mean_abs_rgb_channel_delta"] <= 0.002, receipt
+          assert receipt["truth_boundary"]["godot_skinning_implementation_claim"] is False, receipt
+          assert receipt["truth_boundary"]["production_normals_or_tangents"] is False, receipt
+          pngs = list(root.glob("character-review006-target-engine-direction-frame-*.png"))
+          assert len(pngs) >= 9, len(pngs)
+          print(json.dumps({
+              "result": receipt["result"],
+              "linear_beats_inverse_count": receipt["linear_beats_inverse_count"],
+              "minimum_linear_to_nonrig_separation_ratio": receipt["minimum_linear_to_nonrig_separation_ratio"],
+              "retained_png_count": len(pngs),
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Download pinned Godot 4.7.2
+        if: matrix.python-version == '3.11'
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        if: matrix.python-version == '3.11'
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Render current imported target under ordinary shaded review
+        if: matrix.python-version == '3.11'
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/character-review006-current-target-shaded-motion-reference-*.png
+          rm -f lookdev-proof/character-review006-current-target-shaded-motion-reference-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script character_review006_current_target_shaded_motion_reference_observe.gd
+
+      - name: Validate bounded shaded-motion reference pack
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("lookdev-proof")
+          receipt = json.loads((root / "character-review006-current-target-shaded-motion-reference-runtime-receipt.json").read_text())
+          expected = "PASS_CHARACTER_REVIEW006_CURRENT_TARGET_SHADED_MOTION_REFERENCE_PACK__DIRECTION_FRAME_PROVEN_SEPARATELY"
+          assert receipt["state"] == "PASS_DIAGNOSTIC", receipt
+          assert receipt["result"] == expected, receipt
+          assert all(receipt["gates"].values()), receipt
+          assert receipt["technical_art_direction_frame_gate"]["state"] == "PASS", receipt
+          assert receipt["truth_boundary"]["lookdev_reference_pack_only"] is True, receipt
+          assert receipt["truth_boundary"]["final_art_direction_acceptance"] is False, receipt
+          assert receipt["truth_boundary"]["independent_visual_qa_acceptance"] is False, receipt
+          assert receipt["truth_boundary"]["production_normals_or_tangents"] is False, receipt
+          assert receipt["truth_boundary"]["tangent_space_normal_map_correctness"] is False, receipt
+          print(json.dumps(receipt, indent=2, sort_keys=True))
+          PY
+
+      - name: Retain exact shaded-motion lookdev reference evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-current-target-shaded-motion-reference-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            lookdev/character_review006_current_target_shaded_motion_reference_003.json
+            tools/build_character_review006_current_target_shaded_motion_reference_evidence.py
+            lookdev-proof/project.godot
+            lookdev-proof/character_review006_current_target_shaded_motion_reference_observe.gd
+            lookdev-proof/generated/exact-materials-head.txt
+            lookdev-proof/generated/exact-technical-art-head.txt
+            lookdev-proof/generated/exact-rigging-head.txt
+            lookdev-proof/generated/exact-uc-head.txt
+            lookdev-proof/generated/character_review006_current_target_shaded_motion_reference_payload.json
+            lookdev-proof/generated/character-review006-current-target-shaded-motion-reference-target.glb
+            lookdev-proof/generated/technical-art-target-normal-proof/
+            lookdev-proof/character-review006-current-target-shaded-motion-reference-runtime-receipt.json
+            lookdev-proof/character-review006-current-target-shaded-motion-reference-*.png
+          if-no-files-found: warn
+          retention-days: 60

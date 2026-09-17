@@ -30,7 +30,7 @@ const BONES := [
 var contract: Dictionary = {}
 var payload: Dictionary = {}
 var receipt: Dictionary = {
-    "schema": "axm.character-review006-target-host-playback-runtime/v0.2",
+    "schema": "axm.character-review006-target-host-playback-runtime/v0.3",
     "state": "NOT_RUN",
     "result": "NOT_RUN",
     "promotion_effect": "NONE"
@@ -97,6 +97,32 @@ func import_target() -> Node3D:
         return null
     return generated as Node3D
 
+func track_type_name(track_type: int) -> String:
+    match track_type:
+        Animation.TYPE_ROTATION_3D:
+            return "TYPE_ROTATION_3D"
+        Animation.TYPE_SCALE_3D:
+            return "TYPE_SCALE_3D"
+        Animation.TYPE_POSITION_3D:
+            return "TYPE_POSITION_3D"
+        _:
+            return "TYPE_%d" % int(track_type)
+
+func interpolation_name(interpolation: int) -> String:
+    match interpolation:
+        Animation.INTERPOLATION_NEAREST:
+            return "NEAREST"
+        Animation.INTERPOLATION_LINEAR:
+            return "LINEAR"
+        Animation.INTERPOLATION_CUBIC:
+            return "CUBIC"
+        Animation.INTERPOLATION_LINEAR_ANGLE:
+            return "LINEAR_ANGLE"
+        Animation.INTERPOLATION_CUBIC_ANGLE:
+            return "CUBIC_ANGLE"
+        _:
+            return "UNKNOWN_%d" % int(interpolation)
+
 func track_binding(animation: Animation) -> Dictionary:
     var bindings := {}
     var paths := []
@@ -105,7 +131,20 @@ func track_binding(animation: Animation) -> Dictionary:
     for track in range(animation.get_track_count()):
         var path_text := String(animation.track_get_path(track))
         var track_type := animation.track_get_type(track)
-        paths.append({"index": track, "path": path_text, "type": int(track_type), "key_count": animation.track_get_key_count(track)})
+        var key_count := animation.track_get_key_count(track)
+        var first_time = float(animation.track_get_key_time(track, 0)) if key_count > 0 else null
+        var last_time = float(animation.track_get_key_time(track, key_count - 1)) if key_count > 0 else null
+        paths.append({
+            "index": track,
+            "path": path_text,
+            "type": int(track_type),
+            "type_name": track_type_name(track_type),
+            "interpolation": int(animation.track_get_interpolation_type(track)),
+            "interpolation_name": interpolation_name(animation.track_get_interpolation_type(track)),
+            "key_count": key_count,
+            "first_time_s": first_time,
+            "last_time_s": last_time
+        })
         for bone_name in BONES:
             if path_text.find(bone_name) < 0:
                 continue
@@ -115,35 +154,39 @@ func track_binding(animation: Animation) -> Dictionary:
                 bindings[bone_name]["scale"] = track
     return {"bindings": bindings, "paths": paths}
 
-func validate_track_grid(animation: Animation, info: Dictionary) -> void:
+func validate_track_grid(animation: Animation, info: Dictionary) -> bool:
     if animation.get_track_count() != EXPECTED_TRACK_COUNT:
-        fail("target-host imported animation track-count drift", {"observed": animation.get_track_count()})
-        return
+        fail("target-host imported animation track-count drift", {"observed": animation.get_track_count(), "tracks": info["paths"]})
+        return false
     for row in info["paths"]:
         var track := int(row["index"])
         if animation.track_get_key_count(track) != EXPECTED_KEY_COUNT:
-            fail("target-host imported animation key-count drift", row)
-            return
+            fail("target-host imported animation key-count drift", {"track": row, "all_tracks": info["paths"]})
+            return false
+        if animation.track_get_interpolation_type(track) != Animation.INTERPOLATION_LINEAR:
+            fail("target-host imported animation interpolation-mode drift", {"track": row, "all_tracks": info["paths"]})
+            return false
         if absf(float(animation.track_get_key_time(track, 0))) > 0.000001:
             fail("target-host first key is not time zero", row)
-            return
+            return false
         if absf(float(animation.track_get_key_time(track, EXPECTED_KEY_COUNT - 1)) - EXPECTED_DURATION_S) > 0.00001:
             fail("target-host final key time drift", row)
-            return
+            return false
         for index in range(1, EXPECTED_KEY_COUNT):
             if float(animation.track_get_key_time(track, index)) <= float(animation.track_get_key_time(track, index - 1)):
-                fail("target-host imported key times are not strictly increasing", {"track": track, "index": index})
-                return
+                fail("target-host imported key times are not strictly increasing", {"track": row, "index": index})
+                return false
     for bone_name in BONES:
         if int(info["bindings"][bone_name]["rotation"]) < 0:
-            fail("missing target-host rotation track for " + bone_name)
-            return
+            fail("missing target-host rotation track for " + bone_name, {"bindings": info["bindings"], "tracks": info["paths"]})
+            return false
     if int(info["bindings"]["shoulder-L-release-transport"]["scale"]) < 0 or int(info["bindings"]["shoulder-R-release-transport"]["scale"]) < 0:
-        fail("missing target-host release-helper scale tracks")
-        return
+        fail("missing target-host release-helper scale tracks", {"bindings": info["bindings"], "tracks": info["paths"]})
+        return false
     if int(info["bindings"]["shoulder-L-distal"]["scale"]) >= 0 or int(info["bindings"]["shoulder-R-distal"]["scale"]) >= 0:
-        fail("unexpected distal scale track appeared")
-        return
+        fail("unexpected distal scale track appeared", {"bindings": info["bindings"], "tracks": info["paths"]})
+        return false
+    return true
 
 func key_quaternion(animation: Animation, track: int, index: int) -> Quaternion:
     var raw = animation.track_get_key_value(track, index)
@@ -167,6 +210,13 @@ func scale_error(a: Vector3, b: Vector3) -> float:
 
 func observed_rotation(skeleton: Skeleton3D, bone_indices: Dictionary, bone_name: String) -> Quaternion:
     return skeleton.get_bone_pose_rotation(int(bone_indices[bone_name])).normalized()
+
+func observed_scale(skeleton: Skeleton3D, bone_indices: Dictionary, bone_name: String) -> Vector3:
+    return skeleton.get_bone_pose_scale(int(bone_indices[bone_name]))
+
+func apply_pose_time(player: AnimationPlayer, time_s: float) -> void:
+    player.seek(time_s, true)
+    player.advance(0.0)
 
 func _initialize() -> void:
     call_deferred("run_observer")
@@ -209,7 +259,12 @@ func run_observer() -> void:
         return
 
     var info := track_binding(animation)
-    validate_track_grid(animation, info)
+    if not validate_track_grid(animation, info):
+        return
+    # Establish the exact imported clip as AnimationPlayer's active animation before any seek probe.
+    player.play(clip)
+    player.advance(0.0)
+    player.pause()
     var bone_indices := {}
     for bone_name in BONES:
         var bone := skeleton.find_bone(bone_name)
@@ -218,53 +273,89 @@ func run_observer() -> void:
             return
         bone_indices[bone_name] = bone
 
-    # Repair note: v0.1 incorrectly compared imported Animation resource key values
-    # directly with Skeleton3D pose-space values. Those are not the same representation.
-    # v0.2 proves host interpolation in Animation resource space, then separately proves
-    # actual AnimationPlayer-applied Skeleton motion and loop closure in pose space.
+    # v0.3 target-host method: verify LINEAR semantics through the actual AnimationPlayer-applied
+    # Skeleton3D pose, not by comparing imported Animation resource keys to pose-space values or
+    # trusting typed resource interpolation helpers as a proxy for application. The exact clip,
+    # rig, transport GLB and tolerances are unchanged.
     var midpoint_max_rotation_error_deg := 0.0
     var midpoint_max_scale_error := 0.0
     var midpoint_worst := {}
     for interval_index in range(EXPECTED_INTERVAL_COUNT):
+        var timing_track := int(info["bindings"]["shoulder-L-distal"]["rotation"])
+        var t0 := float(animation.track_get_key_time(timing_track, interval_index))
+        var t1 := float(animation.track_get_key_time(timing_track, interval_index + 1))
+        var midpoint := (t0 + t1) * 0.5
+        if t0 < -0.000001 or t1 > EXPECTED_DURATION_S + 0.000001 or midpoint <= t0 or midpoint >= t1:
+            fail("target-host midpoint timing escaped validated interval", {"interval_index": interval_index, "t0": t0, "t1": t1, "midpoint": midpoint})
+            return
+
+        apply_pose_time(player, t0)
+        var endpoint0 := {}
+        for bone_name in BONES:
+            endpoint0[bone_name] = {
+                "rotation": observed_rotation(skeleton, bone_indices, bone_name),
+                "scale": observed_scale(skeleton, bone_indices, bone_name)
+            }
+        apply_pose_time(player, t1)
+        var endpoint1 := {}
+        for bone_name in BONES:
+            endpoint1[bone_name] = {
+                "rotation": observed_rotation(skeleton, bone_indices, bone_name),
+                "scale": observed_scale(skeleton, bone_indices, bone_name)
+            }
+        apply_pose_time(player, midpoint)
         for bone_name in BONES:
             var binding: Dictionary = info["bindings"][bone_name]
-            var rtrack := int(binding["rotation"])
-            var t0 := float(animation.track_get_key_time(rtrack, interval_index))
-            var t1 := float(animation.track_get_key_time(rtrack, interval_index + 1))
-            var midpoint := (t0 + t1) * 0.5
-            var manual_rotation := key_quaternion(animation, rtrack, interval_index).slerp(key_quaternion(animation, rtrack, interval_index + 1), 0.5).normalized()
-            var host_rotation: Quaternion = animation.rotation_track_interpolate(rtrack, midpoint).normalized()
-            var r_error := rotation_error_deg(host_rotation, manual_rotation)
+            var host_rotation := observed_rotation(skeleton, bone_indices, bone_name)
+            var expected_rotation: Quaternion = (endpoint0[bone_name]["rotation"] as Quaternion).slerp(endpoint1[bone_name]["rotation"] as Quaternion, 0.5).normalized()
+            var r_error := rotation_error_deg(host_rotation, expected_rotation)
             var s_error := 0.0
             if int(binding["scale"]) >= 0:
-                var strack := int(binding["scale"])
-                var manual_scale := key_scale(animation, strack, interval_index).lerp(key_scale(animation, strack, interval_index + 1), 0.5)
-                var host_scale: Vector3 = animation.scale_track_interpolate(strack, midpoint)
-                s_error = scale_error(host_scale, manual_scale)
+                var host_scale := observed_scale(skeleton, bone_indices, bone_name)
+                var expected_scale: Vector3 = (endpoint0[bone_name]["scale"] as Vector3).lerp(endpoint1[bone_name]["scale"] as Vector3, 0.5)
+                s_error = scale_error(host_scale, expected_scale)
             if r_error > midpoint_max_rotation_error_deg or s_error > midpoint_max_scale_error:
-                midpoint_worst = {"interval_index": interval_index, "bone": bone_name, "time_s": midpoint, "rotation_error_deg": r_error, "scale_component_error": s_error}
+                midpoint_worst = {
+                    "interval_index": interval_index,
+                    "bone": bone_name,
+                    "time_s": midpoint,
+                    "rotation_error_deg": r_error,
+                    "scale_component_error": s_error
+                }
             midpoint_max_rotation_error_deg = maxf(midpoint_max_rotation_error_deg, r_error)
             midpoint_max_scale_error = maxf(midpoint_max_scale_error, s_error)
     if midpoint_max_rotation_error_deg > INTERPOLATION_ROTATION_TOLERANCE_DEG or midpoint_max_scale_error > INTERPOLATION_SCALE_TOLERANCE:
-        fail("target-host Animation resource LINEAR interpolation drift", {"rotation_error_deg": midpoint_max_rotation_error_deg, "scale_error": midpoint_max_scale_error, "worst": midpoint_worst})
+        fail("target-host AnimationPlayer pose-space LINEAR interpolation drift", {
+            "rotation_error_deg": midpoint_max_rotation_error_deg,
+            "scale_error": midpoint_max_scale_error,
+            "worst": midpoint_worst,
+            "tracks": info["paths"]
+        })
         return
 
     var negative_interval := 80
-    var negative_track := int(info["bindings"]["shoulder-L-distal"]["rotation"])
-    var nt0 := float(animation.track_get_key_time(negative_track, negative_interval))
-    var nt1 := float(animation.track_get_key_time(negative_track, negative_interval + 1))
+    var timing_track := int(info["bindings"]["shoulder-L-distal"]["rotation"])
+    var nt0 := float(animation.track_get_key_time(timing_track, negative_interval))
+    var nt1 := float(animation.track_get_key_time(timing_track, negative_interval + 1))
     var negative_midpoint := (nt0 + nt1) * 0.5
-    var clean_expected := key_quaternion(animation, negative_track, negative_interval).slerp(key_quaternion(animation, negative_track, negative_interval + 1), 0.5).normalized()
-    var host_expected: Quaternion = animation.rotation_track_interpolate(negative_track, negative_midpoint).normalized()
+    apply_pose_time(player, nt0)
+    var negative_q0 := observed_rotation(skeleton, bone_indices, "shoulder-L-distal")
+    apply_pose_time(player, nt1)
+    var negative_q1 := observed_rotation(skeleton, bone_indices, "shoulder-L-distal")
+    var clean_expected := negative_q0.slerp(negative_q1, 0.5).normalized()
+    apply_pose_time(player, negative_midpoint)
+    var host_expected := observed_rotation(skeleton, bone_indices, "shoulder-L-distal")
     var mutated_expected := (Quaternion(Vector3(1.0, 0.0, 0.0), deg_to_rad(NEGATIVE_OFFSET_DEG)) * clean_expected).normalized()
     var clean_error := rotation_error_deg(host_expected, clean_expected)
     var mutated_error := rotation_error_deg(host_expected, mutated_expected)
     var negative_rejected := clean_error <= INTERPOLATION_ROTATION_TOLERANCE_DEG and mutated_error > INTERPOLATION_ROTATION_TOLERANCE_DEG
     if not negative_rejected:
-        fail("verifier-only interpolation negative control did not fail closed", {"clean_error_deg": clean_error, "mutated_error_deg": mutated_error})
+        fail("verifier-only pose-space interpolation negative control did not fail closed", {"clean_error_deg": clean_error, "mutated_error_deg": mutated_error})
         return
 
-    # Let generated scene settle once before pose-space observation.
+    # Reset explicitly to the authored neutral before wall-clock observation; midpoint probing
+    # must not leak its final seek state into the wall-clock baseline.
+    apply_pose_time(player, 0.0)
     await process_frame
     var neutral_left := observed_rotation(skeleton, bone_indices, "shoulder-L-distal")
     var neutral_right := observed_rotation(skeleton, bone_indices, "shoulder-R-distal")
@@ -281,6 +372,7 @@ func run_observer() -> void:
     var wall_sum_dt_ms := 0.0
     var wall_dt_count := 0
 
+    player.stop()
     player.play(clip)
     var wall_start := Time.get_ticks_usec()
     while true:
@@ -335,15 +427,15 @@ func run_observer() -> void:
         return
 
     receipt = {
-        "schema": "axm.character-review006-target-host-playback-runtime/v0.2",
+        "schema": "axm.character-review006-target-host-playback-runtime/v0.3",
         "state": "PASS_DIAGNOSTIC",
         "result": "PASS_CHARACTER_REVIEW006_TARGET_HOST_ANIMATIONPLAYER_INTERPOLATION_AND_PLAYBACK_TRACE",
         "promotion_effect": "NONE",
         "repair_trace": {
-            "prior_run_id": 35216183976,
-            "prior_artifact_id": 10495176834,
-            "prior_failure": "target-host midpoint rotation interpolation drift: 29.9999530235019",
-            "diagnosis": "verifier representation error: imported Animation resource key rotations were compared directly to Skeleton3D pose-space rotations; v0.2 separates resource-space interpolation proof from pose-space applied-motion proof",
+            "prior_run_id": 35217194776,
+            "prior_artifact_id": 10494834190,
+            "prior_failure": "ambiguous resource-helper interpolation receipt reported up to 29.9999160766602 deg rotation error and 1.0 scale error, with a later invalid/default observation at time_s=-1.0",
+            "diagnosis": "v0.3 removes the ambiguous imported-resource interpolation helper from the acceptance path and checks midpoint LINEAR behavior through actual AnimationPlayer-applied Skeleton3D pose space; track-grid failures now stop immediately instead of allowing a later receipt overwrite",
             "source_motion_or_tolerance_changed_to_force_pass": false
         },
         "engine": {
@@ -367,10 +459,12 @@ func run_observer() -> void:
             "transport_key_count_per_track": EXPECTED_KEY_COUNT,
             "interpolation_contract": "glTF LINEAR channels imported by target host"
         },
-        "resource_space_midpoint_interpolation": {
+        "midpoint_interpolation": {
+            "intervals_checked": EXPECTED_INTERVAL_COUNT,
             "intervals_checked_per_track": EXPECTED_INTERVAL_COUNT,
             "rotation_tracks_checked": 4,
             "scale_tracks_checked": 2,
+            "observation_space": "AnimationPlayer-applied Skeleton3D pose space",
             "diagnostic_sample_density_hz": 320,
             "maximum_rotation_error_deg": midpoint_max_rotation_error_deg,
             "maximum_scale_component_error": midpoint_max_scale_error,

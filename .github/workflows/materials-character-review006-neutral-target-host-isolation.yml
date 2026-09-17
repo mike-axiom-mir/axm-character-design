@@ -1,0 +1,174 @@
+name: Materials Character review006 neutral target-host isolation evidence
+
+on:
+  push:
+    branches: [studio/materials-character-shaded-shoulder-001]
+    paths:
+      - "lookdev/character_review006_neutral_target_host_isolation_001.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_neutral_target_host_isolation_observe.gd"
+      - "tools/build_character_review006_neutral_target_host_isolation_evidence.py"
+      - ".github/workflows/materials-character-review006-neutral-target-host-isolation.yml"
+  pull_request:
+    paths:
+      - "lookdev/character_review006_neutral_target_host_isolation_001.json"
+      - "lookdev-proof/project.godot"
+      - "lookdev-proof/character_review006_neutral_target_host_isolation_observe.gd"
+      - "tools/build_character_review006_neutral_target_host_isolation_evidence.py"
+      - ".github/workflows/materials-character-review006-neutral-target-host-isolation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  neutral-target-host-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: Checkout exact Materials head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact current Character source owners without rewriting this lane
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor c2ae66c75abac064b679f1597b7544d058dc3ad1 HEAD
+          git merge-base --is-ancestor e450684b398f8e5b0e23c4cbf717e3475dd4d5ee HEAD
+          git fetch --no-tags origin c007c327f2613989581192602338435b67b748d7
+          git fetch --no-tags origin a218b2cf2727482a78db8ab21afcf1bb72637bcc
+          test "$(git rev-parse c007c327f2613989581192602338435b67b748d7:src/axm_character_design/review006_uc_skin_transport.py)" = "831fd7522ec2a8783862da653d6f12465252a3b2"
+          test "$(git rev-parse e450684b398f8e5b0e23c4cbf717e3475dd4d5ee:tools/build_character_review006_shaded_shoulder_evidence.py)" = "843c0e1866172dd8b6c5ab0f23d69d1e469562f7"
+          rm -rf /tmp/axm-current-ta
+          git worktree add --detach /tmp/axm-current-ta c007c327f2613989581192602338435b67b748d7
+          mkdir -p lookdev-proof/generated
+          git rev-parse HEAD > lookdev-proof/generated/exact-materials-head.txt
+          printf '%s\n' c007c327f2613989581192602338435b67b748d7 > lookdev-proof/generated/exact-technical-art-head.txt
+          printf '%s\n' a218b2cf2727482a78db8ab21afcf1bb72637bcc > lookdev-proof/generated/exact-rigging-oracle-head.txt
+          printf '%s\n' e450684b398f8e5b0e23c4cbf717e3475dd4d5ee > lookdev-proof/generated/exact-static-materials-reference-head.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact current-TA neutral target and Materials reference payload
+        env:
+          PYTHONPATH: /tmp/axm-current-ta/src
+        run: python tools/build_character_review006_neutral_target_host_isolation_evidence.py
+
+      - name: Prove current Technical Art identity drift fails closed
+        env:
+          PYTHONPATH: /tmp/axm-current-ta/src
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys, tempfile
+          from pathlib import Path
+          src=Path('lookdev/character_review006_neutral_target_host_isolation_001.json')
+          data=json.loads(src.read_text())
+          data['technical_art_current_head']='0000000000000000000000000000000000000000'
+          temp=Path(tempfile.mkdtemp())
+          bad=temp/'bad.json'
+          bad.write_text(json.dumps(data))
+          proc=subprocess.run(
+              [sys.executable,'tools/build_character_review006_neutral_target_host_isolation_evidence.py',
+               '--contract',str(bad),'--out-dir',str(temp/'out')],
+              env={**os.environ,'PYTHONPATH':'/tmp/axm-current-ta/src'},
+              capture_output=True,text=True)
+          assert proc.returncode != 0,(proc.stdout,proc.stderr)
+          assert 'technical_art_current_head drift' in (proc.stdout+proc.stderr),(proc.stdout,proc.stderr)
+          print('current Technical Art identity drift rejected as expected')
+          PY
+
+      - name: Download pinned Godot 4.7.2
+        if: matrix.python-version == '3.11'
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        if: matrix.python-version == '3.11'
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Render skinned target versus detached imported surface and owner reference
+        if: matrix.python-version == '3.11'
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/character-review006-neutral-isolation-*.png
+          rm -f lookdev-proof/character-review006-neutral-target-host-isolation-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script character_review006_neutral_target_host_isolation_observe.gd
+
+      - name: Validate bounded neutral target-host isolation diagnostic
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('lookdev-proof/character-review006-neutral-target-host-isolation-runtime-receipt.json')
+          r=json.loads(p.read_text())
+          assert r['state']=='PASS_DIAGNOSTIC',r
+          allowed={
+              'DIAGNOSTIC_CHARACTER_REVIEW006_NEUTRAL_DIVERGENCE_IS_AFTER_RAW_IMPORTED_SURFACE_ARRAYS',
+              'HOLD_CHARACTER_REVIEW006_NEUTRAL_DIVERGENCE_INCLUDES_STATIC_IMPORTED_SURFACE_OR_TRANSFORM_PATH',
+              'INCONCLUSIVE_CHARACTER_REVIEW006_NEUTRAL_ISOLATION__POSITION_CONTROL_MISMATCH',
+              'INCONCLUSIVE_CHARACTER_REVIEW006_NEUTRAL_ISOLATION__NORMAL_OBSERVER_INSENSITIVE',
+          }
+          assert r['result'] in allowed,r
+          a=r['raw_import_audit']
+          assert a['vertex_count']==184 and a['normal_count']==184,a
+          assert a['index_mismatch_count']==0,a
+          for context,row in r['comparisons'].items():
+              assert row['inverted_to_static_negative']['changed_pixels_gt_1lsb']>0,(context,row)
+          assert r['truth_boundary']['production_normals_or_tangents'] is False,r
+          assert r['truth_boundary']['canon'] is False,r
+          print(json.dumps(r,indent=2))
+          PY
+
+      - name: Retain exact neutral target-host isolation evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-neutral-target-host-isolation-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            lookdev/character_review006_neutral_target_host_isolation_001.json
+            tools/build_character_review006_neutral_target_host_isolation_evidence.py
+            lookdev-proof/character_review006_neutral_target_host_isolation_observe.gd
+            lookdev-proof/generated/character_review006_neutral_target_host_isolation_payload.json
+            lookdev-proof/generated/character-review006-neutral-target-host-target.glb
+            lookdev-proof/generated/exact-materials-head.txt
+            lookdev-proof/generated/exact-technical-art-head.txt
+            lookdev-proof/generated/exact-rigging-oracle-head.txt
+            lookdev-proof/generated/exact-static-materials-reference-head.txt
+            lookdev-proof/character-review006-neutral-target-host-isolation-runtime-receipt.json
+            lookdev-proof/character-review006-neutral-isolation-*.png
+          if-no-files-found: warn
+          retention-days: 60

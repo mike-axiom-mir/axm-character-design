@@ -70,6 +70,11 @@ jobs:
         env:
           PYTHONPATH: src
         run: python tools/build_shoulder_pose_clearance_refinement.py --out evidence/character-neutral-a-001
+      - name: Build shoulder pose-clearance spatial context
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: python tools/build_shoulder_pose_clearance_spatial_context.py --out evidence/character-neutral-a-001
       - name: Build shoulder neutral mass-interface context
         if: matrix.python-version == '3.11'
         env:

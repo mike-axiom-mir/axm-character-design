@@ -1,0 +1,100 @@
+name: Animation Character review006 shoulder diagnostic
+
+on:
+  push:
+    branches: [studio/animation-character-review006-shoulder-diagnostic-001]
+    paths:
+      - "src/axm_character_design/review006_shoulder_animation_diagnostic.py"
+      - "tests/test_review006_shoulder_animation_diagnostic.py"
+      - "tools/build_review006_shoulder_animation_evidence.py"
+      - ".github/workflows/animation-character-review006-shoulder-diagnostic.yml"
+  pull_request:
+    paths:
+      - "src/axm_character_design/review006_shoulder_animation_diagnostic.py"
+      - "tests/test_review006_shoulder_animation_diagnostic.py"
+      - "tools/build_review006_shoulder_animation_evidence.py"
+      - ".github/workflows/animation-character-review006-shoulder-diagnostic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact Animation head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Bind exact Rigging parent and Character lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          rigging="fa16c44b1a488d43842470fc9f30c5fb5e98cab6"
+          geometry="8ad006f91ebb9934d5df98702e4410c74a1e68ea"
+          historical_profile="62a60ee6b930d13898203d37b0cc9dab6b13d99d"
+          git merge-base --is-ancestor "$rigging" HEAD
+          git merge-base --is-ancestor "$geometry" HEAD
+          git cat-file -e "$historical_profile^{commit}"
+          mkdir -p build/review006-animation-diagnostic
+          git rev-parse HEAD > build/review006-animation-diagnostic/exact-animation-head.txt
+          printf '%s\n' "$rigging" > build/review006-animation-diagnostic/exact-rigging-parent-head.txt
+          printf '%s\n' "$geometry" > build/review006-animation-diagnostic/exact-geometry-head.txt
+          printf '%s\n' "$historical_profile" > build/review006-animation-diagnostic/exact-profile-source-head.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Build exact dense Animation evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: |
+          python tools/build_review006_shoulder_animation_evidence.py build/review006-animation-diagnostic
+
+      - name: Validate retained Animation summary
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('build/review006-animation-diagnostic')
+          data = json.loads((root / 'summary.json').read_text())
+          assert data['status'] == 'PASS_CHARACTER_REVIEW006_DENSE_SHOULDER_DIAGNOSTIC_LOOP', data
+          assert data['motion']['dense_sample_count'] == 321, data
+          assert data['motion']['authored_sample_count'] == 81, data
+          assert data['motion']['all_dense_structural_pass'] is True, data
+          assert data['motion']['all_dense_nonadjacent_intersection_free'] is True, data
+          assert data['motion']['all_dense_bilateral_mirror'] is True, data
+          assert data['negative_control']['authored_key_max_angle_residual_deg'] <= 1e-12, data
+          assert data['negative_control']['dense_failure_count'] > 0, data
+          assert data['negative_control']['rejected'] is True, data
+          assert data['gates']['runtime_controller'] == 'NOT_EVALUATED', data
+          assert data['gates']['gameplay'] == 'NOT_EVALUATED', data
+          print(json.dumps(data, indent=2))
+          PY
+
+      - name: Upload retained exact-head Animation evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-animation-diagnostic-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/review006-animation-diagnostic
+          if-no-files-found: error
+          retention-days: 90

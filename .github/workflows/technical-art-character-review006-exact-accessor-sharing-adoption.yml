@@ -1,0 +1,196 @@
+name: Technical Art Character review006 exact accessor sharing adoption
+
+on:
+  push:
+    branches: [studio/technical-art-character-review006-uc-skin-transport-001]
+    paths:
+      - "src/axm_character_design/review006_exact_accessor_sharing.py"
+      - "tests/test_review006_exact_accessor_sharing.py"
+      - "tools/build_review006_exact_accessor_sharing_adoption_evidence.py"
+      - "lookdev-proof/character_review006_exact_accessor_sharing_adoption_observe.gd"
+      - ".github/workflows/technical-art-character-review006-exact-accessor-sharing-adoption.yml"
+  pull_request:
+    paths:
+      - "src/axm_character_design/review006_exact_accessor_sharing.py"
+      - "tests/test_review006_exact_accessor_sharing.py"
+      - "tools/build_review006_exact_accessor_sharing_adoption_evidence.py"
+      - "lookdev-proof/character_review006_exact_accessor_sharing_adoption_observe.gd"
+      - ".github/workflows/technical-art-character-review006-exact-accessor-sharing-adoption.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-accessor-sharing-adoption:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: Checkout exact Technical Art head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Bind exact owner and receiver identities
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 36744749a592e067a119f3349a499d65f25af134 HEAD
+          git fetch --no-tags origin d95caae1df766b2e08bca50241d732ecb2208aee
+          test "$(git ls-remote https://github.com/mike-axiom-mir/axm-universal-creation.git refs/heads/main | cut -f1)" = "17b3533a73ae865080762cd9429a027baa5552b0"
+          git rev-parse HEAD > /tmp/exact-technical-art-head.txt
+          printf '%s\n' d95caae1df766b2e08bca50241d732ecb2208aee > /tmp/exact-runtime-donor-head.txt
+          printf '%s\n' 17b3533a73ae865080762cd9429a027baa5552b0 > /tmp/exact-uc-current-head.txt
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Prepare exact Runtime donor and UC receivers
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/axm-runtime-donor /tmp/uc-runtime /tmp/uc-current /tmp/runtime-evidence
+          git worktree add --detach /tmp/axm-runtime-donor d95caae1df766b2e08bca50241d732ecb2208aee
+          git clone -q https://github.com/mike-axiom-mir/axm-universal-creation.git /tmp/uc-runtime
+          git -C /tmp/uc-runtime checkout -q fed35116c1aabe54789f1197b7b2423b3b516169
+          test "$(git -C /tmp/uc-runtime rev-parse HEAD:src/axm_uc/game_pose_runtime.py)" = "dee5db003a56a0a5f55092c1b3db50f56a22de7e"
+          git clone -q https://github.com/mike-axiom-mir/axm-universal-creation.git /tmp/uc-current
+          git -C /tmp/uc-current checkout -q 17b3533a73ae865080762cd9429a027baa5552b0
+          test "$(git -C /tmp/uc-current rev-parse HEAD:src/axm_uc/game_pose_runtime.py)" = "dee5db003a56a0a5f55092c1b3db50f56a22de7e"
+
+      - name: Reproduce exact Runtime donor candidate
+        run: |
+          set -euo pipefail
+          PYTHONPATH=/tmp/axm-runtime-donor/src \
+            python /tmp/axm-runtime-donor/tools/build_runtime_review006_scale_accessor_dedup_v2.py \
+              --out /tmp/runtime-evidence \
+              --uc-root /tmp/uc-runtime
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/runtime-evidence/result.json').read_text())
+          assert result['status'] == 'PASS_CHARACTER_REVIEW006_BILATERAL_RELEASE_SCALE_ACCESSOR_DEDUP_IMPORT_BUDGET__HOLD_TARGET_ENGINE_ART_QA_ADOPTION', result
+          assert result['identity']['runtime_head'] == 'd95caae1df766b2e08bca50241d732ecb2208aee', result
+          assert result['candidate']['glb_bytes'] == 40064, result
+          assert result['current_uc_equivalence']['maximum_position_delta_m'] == 0.0 if 'current_uc_equivalence' in result else result['uc_receiver_equivalence']['maximum_position_delta_m'] == 0.0
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
+      - name: Prove Technical Art adoption through current UC
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          rm -rf lookdev-proof/generated/review006-accessor-sharing-adoption
+          python tools/build_review006_exact_accessor_sharing_adoption_evidence.py \
+            --uc-root /tmp/uc-current \
+            --runtime-donor-dir /tmp/runtime-evidence
+          cp /tmp/runtime-evidence/result.json \
+            lookdev-proof/generated/review006-accessor-sharing-adoption/runtime-donor-result.json
+          cp /tmp/exact-technical-art-head.txt \
+            lookdev-proof/generated/review006-accessor-sharing-adoption/workflow-exact-technical-art-head.txt
+
+      - name: Validate exact Technical Art and current-UC receipt
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('lookdev-proof/generated/review006-accessor-sharing-adoption/result.json')
+          result = json.loads(p.read_text())
+          assert result['result'] == 'PASS_CHARACTER_REVIEW006_RUNTIME_EXACT_ACCESSOR_SHARING_ADOPTED_AT_TECHNICAL_ART_EXPORT_BOUNDARY_TO_CURRENT_UC', result
+          assert result['control']['bytes'] == 44032, result
+          assert result['candidate']['bytes'] == 40064, result
+          assert result['before_after']['file_bytes_saved'] == 3968, result
+          assert result['before_after']['binary_payload_bytes_removed'] == 3852, result
+          assert result['runtime_donor_reproduction']['candidate_byte_identical'] is True, result
+          assert result['current_uc_equivalence']['sample_count'] == 321, result
+          assert result['current_uc_equivalence']['maximum_position_delta_m'] == 0.0, result
+          assert result['current_uc_equivalence']['maximum_skin_palette_component_delta'] == 0.0, result
+          assert result['negative_control']['rejected_fail_closed'] is True, result
+          assert result['truth_boundary']['uc_modified'] is False, result
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
+      - name: Download pinned Godot 4.7.2
+        if: matrix.python-version == '3.11'
+        env:
+          GODOT_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          GODOT_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+        run: |
+          set -euo pipefail
+          mkdir -p .godot-bin
+          curl --fail --location --retry 3 --retry-delay 2 "$GODOT_URL" --output .godot-bin/godot.zip
+          echo "$GODOT_SHA256  .godot-bin/godot.zip" | sha256sum --check --strict
+          unzip -q .godot-bin/godot.zip -d .godot-bin
+          chmod +x .godot-bin/Godot_v4.7.2-stable_linux.x86_64
+          .godot-bin/Godot_v4.7.2-stable_linux.x86_64 --version
+
+      - name: Install virtual display when needed
+        if: matrix.python-version == '3.11'
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Observe exact producer candidate in real Godot receiver
+        if: matrix.python-version == '3.11'
+        run: |
+          set -euo pipefail
+          rm -f lookdev-proof/character-review006-exact-accessor-sharing-adoption-runtime-receipt.json
+          xvfb-run --auto-servernum --server-args="-screen 0 1100x850x24" \
+            .godot-bin/Godot_v4.7.2-stable_linux.x86_64 \
+            --display-driver x11 \
+            --rendering-method gl_compatibility \
+            --path lookdev-proof \
+            --script character_review006_exact_accessor_sharing_adoption_observe.gd
+
+      - name: Validate real Godot import and dense skin-pose equivalence
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('lookdev-proof/character-review006-exact-accessor-sharing-adoption-runtime-receipt.json')
+          result = json.loads(path.read_text())
+          assert result['state'] == 'PASS_DIAGNOSTIC', result
+          assert result['result'] == 'PASS_CHARACTER_REVIEW006_TECHNICAL_ART_SHARED_ACCESSOR_GODOT_IMPORT_AND_DENSE_SKIN_POSE_EQUIVALENCE', result
+          assert result['animation_resource_equivalence']['maximum_key_value_component_delta'] <= 1e-7, result
+          assert result['animation_resource_equivalence']['maximum_key_time_delta_s'] <= 1e-7, result
+          assert result['mesh_resource_equivalence']['maximum_position_component_delta'] <= 1e-7, result
+          assert result['mesh_resource_equivalence']['maximum_normal_component_delta'] <= 1e-7, result
+          assert result['mesh_resource_equivalence']['index_mismatches'] == 0, result
+          assert result['dense_skin_pose_equivalence']['samples'] == 321, result
+          assert result['dense_skin_pose_equivalence']['maximum_position_component_delta'] <= 1e-7, result
+          assert result['dense_skin_pose_equivalence']['maximum_rotation_component_delta'] <= 1e-7, result
+          assert result['dense_skin_pose_equivalence']['maximum_scale_component_delta'] <= 1e-7, result
+          assert result['negative_control']['observer_sensitive'] is True, result
+          assert result['truth_boundary']['tangent_or_tangent_space'] == 'NOT_EVALUATED', result
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
+      - name: Retain exact accessor-sharing adoption evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-exact-accessor-sharing-adoption-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            src/axm_character_design/review006_exact_accessor_sharing.py
+            tests/test_review006_exact_accessor_sharing.py
+            tools/build_review006_exact_accessor_sharing_adoption_evidence.py
+            lookdev-proof/character_review006_exact_accessor_sharing_adoption_observe.gd
+            lookdev-proof/generated/review006-accessor-sharing-adoption/*
+            lookdev-proof/character-review006-exact-accessor-sharing-adoption-runtime-receipt.json
+          if-no-files-found: warn
+          retention-days: 60

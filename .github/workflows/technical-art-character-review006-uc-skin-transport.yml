@@ -1,0 +1,112 @@
+name: Technical Art Character review006 UC skin transport
+
+on:
+  pull_request:
+    paths:
+      - "src/axm_character_design/review006_uc_skin_transport.py"
+      - "tests/test_review006_uc_skin_transport.py"
+      - "tools/build_review006_uc_skin_transport_evidence.py"
+      - ".github/workflows/technical-art-character-review006-uc-skin-transport.yml"
+  workflow_dispatch:
+
+jobs:
+  full-character-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+  exact-current-uc-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Technical Art head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Bind exact Character donor identities
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 9519be55581c009fd800d175677d9b50ee6926e6 HEAD
+          git fetch --no-tags origin e450684b398f8e5b0e23c4cbf717e3475dd4d5ee
+          test "$(git rev-parse e450684b398f8e5b0e23c4cbf717e3475dd4d5ee:tools/build_character_review006_shaded_shoulder_evidence.py)" = "843c0e1866172dd8b6c5ab0f23d69d1e469562f7"
+          git fetch --no-tags origin a218b2cf2727482a78db8ab21afcf1bb72637bcc
+          test "$(git rev-parse a218b2cf2727482a78db8ab21afcf1bb72637bcc:src/axm_character_design/review006_shoulder_deformation_gradient_frame.py)" = "57c43aea818f293274a94457252bf87e20b98897"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build exact Rigging owner-frame reference
+        env:
+          PYTHONPATH: _rigging/src
+        run: |
+          set -euo pipefail
+          rm -rf _rigging evidence/rigging-owner-frame
+          git worktree add --detach _rigging a218b2cf2727482a78db8ab21afcf1bb72637bcc
+          PYTHONPATH=_rigging/src python - <<'PY'
+          from axm_character_design.review006_shoulder_deformation_gradient_frame import build_review006_deformation_gradient_frame_evidence
+          row = build_review006_deformation_gradient_frame_evidence("evidence/rigging-owner-frame")
+          assert row["status"] == "PASS_CHARACTER_REVIEW006_RIG_DEFORMATION_GRADIENT_FRAME_REFERENCE__STRUCTURAL_BOUNDARY_UNCHANGED"
+          assert row["deformation_gradient_reference"]["continuous_local_gradient_invertible"] is True
+          PY
+      - name: Checkout exact current Universal Creation
+        uses: actions/checkout@v4
+        with:
+          repository: mike-axiom-mir/axm-universal-creation
+          ref: fed35116c1aabe54789f1197b7b2423b3b516169
+          path: _uc
+          fetch-depth: 0
+      - name: Bind exact current UC pose receiver
+        run: |
+          set -euo pipefail
+          test "$(git -C _uc rev-parse HEAD)" = "fed35116c1aabe54789f1197b7b2423b3b516169"
+          git -C _uc merge-base --is-ancestor 7edbc9544d52207a6f09cb85889d1587e22d4442 fed35116c1aabe54789f1197b7b2423b3b516169
+          test "$(git -C _uc rev-parse HEAD:src/axm_uc/game_pose_runtime.py)" = "dee5db003a56a0a5f55092c1b3db50f56a22de7e"
+      - name: Build exact cross-repo evidence
+        env:
+          PYTHONPATH: src:_uc/src
+        run: |
+          set -euo pipefail
+          rm -rf evidence/character-review006-uc-skin-transport
+          python tools/build_review006_uc_skin_transport_evidence.py \
+            --out evidence/character-review006-uc-skin-transport \
+            --uc-root _uc \
+            --uc-head fed35116c1aabe54789f1197b7b2423b3b516169 \
+            --rigging-reference evidence/rigging-owner-frame/review006-rig-deformation-gradient-frame.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          row = json.loads(Path("evidence/character-review006-uc-skin-transport/result.json").read_text())
+          assert row["result"] == "PASS_CHARACTER_REVIEW006_DENSE_SKIN_POSITION_AND_RIG_GRADIENT_PALETTE_TRANSPORT_TO_CURRENT_UC__HOLD_TARGET_ENGINE_DIRECTION_FRAME"
+          assert row["position_status"] == "PASS_CHARACTER_REVIEW006_DYNAMIC_RELEASE_TO_STATIC_GLTF_TRS_SKIN_DENSE_KEYS"
+          assert row["palette_direction_frame_status"] == "PASS_CHARACTER_REVIEW006_RIG_GRADIENT_TO_CURRENT_UC_PALETTE_DIRECTION_FRAME_BRIDGE"
+          assert row["direct_uc_deformed_normal_status"].startswith("HOLD_CHARACTER_REVIEW006_DEFORMED_DIRECTION_FRAME")
+          assert row["source_counts"]["combined_vertices"] == 184
+          assert row["source_counts"]["combined_triangles"] == 360
+          assert row["transport"]["transport_key_count"] == 321
+          assert row["transport"]["maximum_uc_position_residual_m"] <= row["transport"]["position_tolerance_m"]
+          bridge = json.loads(Path("evidence/character-review006-uc-skin-transport/uc-palette-direction-frame-bridge.json").read_text())
+          assert bridge["comparison"]["maximum_gradient_component_delta"] <= bridge["comparison"]["matrix_component_tolerance"]
+          assert bridge["comparison"]["maximum_inverse_transpose_normal_matrix_component_delta"] <= bridge["comparison"]["matrix_component_tolerance"]
+          assert bridge["comparison"]["helper_disabled_rejected"] is True
+          assert row["direction_frame"]["direct_normal_claim_mutation_rejected"] is True
+          PY
+      - name: Upload retained Technical Art evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-uc-skin-transport-${{ github.event.pull_request.head.sha || github.sha }}
+          path: evidence/character-review006-uc-skin-transport
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,174 @@
+name: Animation Character review006 continuous owner-envelope bind
+
+on:
+  push:
+    branches: [studio/animation-character-review006-shoulder-diagnostic-001]
+    paths:
+      - "tools/build_review006_shoulder_animation_continuous_owner_bind.py"
+      - ".github/workflows/animation-character-review006-continuous-owner-bind.yml"
+  pull_request:
+    paths:
+      - "tools/build_review006_shoulder_animation_continuous_owner_bind.py"
+      - ".github/workflows/animation-character-review006-continuous-owner-bind.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact Animation head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Preserve frozen Animation implementation identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:src/axm_character_design/review006_shoulder_animation_diagnostic.py)" = "7d0d630256f5f142f882cbc7212679585668d9e8"
+          test "$(git rev-parse HEAD:tools/build_review006_shoulder_animation_evidence.py)" = "3584633acaa10f48a824b2c1db00b4ca52443dd0"
+          git rev-parse HEAD > /tmp/exact-animation-head.txt
+
+      - name: Compile and run complete Character suite
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m compileall -q src tests tools
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Rebuild frozen Animation dense-motion evidence
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          rm -rf build/review006-animation-continuous-owner-bind
+          mkdir -p build/review006-animation-continuous-owner-bind/animation
+          python tools/build_review006_shoulder_animation_evidence.py \
+            build/review006-animation-continuous-owner-bind/animation
+          cp /tmp/exact-animation-head.txt \
+            build/review006-animation-continuous-owner-bind/exact-animation-head.txt
+
+      - name: Rebuild exact current Rigging continuous certificates
+        if: matrix.python-version == '3.11'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rigging="0b5b6c99c0f1349d8a1a2198cc69969c5b829236"
+          rm -rf /tmp/review006-current-rigging
+          git fetch --no-tags origin "$rigging"
+          git worktree add --detach /tmp/review006-current-rigging "$rigging"
+          printf '%s\n' "$rigging" > build/review006-animation-continuous-owner-bind/exact-current-rigging-head.txt
+          PYTHONPATH=/tmp/review006-current-rigging/src python - <<'PY'
+          import json
+          from pathlib import Path
+          from axm_character_design.review006_shoulder_continuous_clearance import (
+              STATUS as NONADJ_STATUS,
+              audit_review006_continuous_nonadjacent_clearance,
+          )
+          from axm_character_design.review006_shoulder_continuous_edge_adjacent_fold import (
+              STATUS as EDGE_STATUS,
+              audit_review006_continuous_edge_adjacent_fold_margin,
+          )
+          from axm_character_design.review006_shoulder_continuous_vertex_only_cone import (
+              STATUS as VERTEX_STATUS,
+              audit_review006_continuous_vertex_only_neighbor_cone,
+          )
+
+          nonadj = audit_review006_continuous_nonadjacent_clearance()
+          edge = audit_review006_continuous_edge_adjacent_fold_margin()
+          vertex = audit_review006_continuous_vertex_only_neighbor_cone()
+          assert nonadj['status'] == NONADJ_STATUS, nonadj['status']
+          assert edge['status'] == EDGE_STATUS, edge['status']
+          assert vertex['status'] == VERTEX_STATUS, vertex['status']
+          identity = nonadj['exact_identity']
+          result = {
+              'exact_rigging_head': '0b5b6c99c0f1349d8a1a2198cc69969c5b829236',
+              'identity': {
+                  'review006_source_digest': identity['review006_source_digest'],
+                  'review006_proof_mesh_digest': identity['review006_proof_mesh_digest'],
+                  'selected_geometry_head': identity['selected_geometry_head'],
+                  'topology_digests': identity['topology_digests'],
+                  'profile_digest': identity['profile_digest'],
+              },
+              'nonadjacent': {
+                  'status': nonadj['status'],
+                  'range_deg': nonadj['continuous_clearance']['range_deg'],
+                  'all_real_owner_angles_certified': nonadj['continuous_clearance']['nonadjacent_triangle_clearance_proven_for_all_real_angles'],
+                  'left_minimum_slack_m': nonadj['continuous_clearance']['sides']['L']['minimum_certificate_slack_m'],
+                  'right_minimum_slack_m': nonadj['continuous_clearance']['sides']['R']['minimum_certificate_slack_m'],
+              },
+              'edge_adjacent': {
+                  'status': edge['status'],
+                  'range_deg': edge['continuous_edge_adjacent_fold_guard']['range_deg'],
+                  'all_real_owner_angles_certified': edge['continuous_edge_adjacent_fold_guard']['all_real_owner_angles_certified'],
+                  'left_minimum_slack_rad': edge['continuous_edge_adjacent_fold_guard']['sides']['L']['minimum_certificate_slack_rad'],
+                  'right_minimum_slack_rad': edge['continuous_edge_adjacent_fold_guard']['sides']['R']['minimum_certificate_slack_rad'],
+              },
+              'vertex_only': {
+                  'status': vertex['status'],
+                  'range_deg': vertex['continuous_vertex_only_neighbor_guard']['range_deg'],
+                  'all_real_owner_angles_certified': vertex['continuous_vertex_only_neighbor_guard']['all_real_owner_angles_certified'],
+                  'left_minimum_slack_rad': vertex['continuous_vertex_only_neighbor_guard']['sides']['L']['minimum_certificate_slack_rad'],
+                  'right_minimum_slack_rad': vertex['continuous_vertex_only_neighbor_guard']['sides']['R']['minimum_certificate_slack_rad'],
+              },
+              'retained_failure_boundary': {
+                  'last_continuously_certified_clear_deg': 36.55,
+                  'first_retained_sampled_nonadjacent_failure_deg': 36.60,
+                  'exact_first_contact_angle_solved': False,
+              },
+          }
+          out = Path('build/review006-animation-continuous-owner-bind/current-rigging-continuous-receipt.json')
+          out.write_text(json.dumps(result, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
+      - name: Compose frozen Animation curve with current continuous Rigging envelope
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: src
+        run: |
+          python tools/build_review006_shoulder_animation_continuous_owner_bind.py \
+            build/review006-animation-continuous-owner-bind/animation/summary.json \
+            build/review006-animation-continuous-owner-bind/current-rigging-continuous-receipt.json \
+            build/review006-animation-continuous-owner-bind/result.json
+
+      - name: Validate bounded Animation result and fail-closed controls
+        if: matrix.python-version == '3.11'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('build/review006-animation-continuous-owner-bind/result.json').read_text())
+          assert result['status'] == 'PASS_CHARACTER_REVIEW006_ANIMATION_CURVE_INSIDE_CURRENT_CONTINUOUS_RIG_OWNER_ENVELOPE', result
+          assert result['composition']['continuous_range_contained'] is True, result
+          assert result['composition']['negative_margin_deg'] == 10.0, result
+          assert abs(result['composition']['positive_margin_deg'] - 6.55) <= 1e-12, result
+          assert result['negative_controls']['widened_plus37_curve']['rejected'] is True, result
+          assert result['negative_controls']['profile_identity_mismatch']['rejected'] is True, result
+          assert result['gates']['runtime_controller_state_machine_input'] == 'NOT_EVALUATED', result
+          assert result['gates']['gameplay_collision_physics'] == 'NOT_EVALUATED', result
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload exact-head Animation continuous-owner evidence
+        if: matrix.python-version == '3.11' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: character-review006-animation-continuous-owner-bind-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/review006-animation-continuous-owner-bind
+          if-no-files-found: error
+          retention-days: 90

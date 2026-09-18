@@ -1,0 +1,51 @@
+{
+  "schema": "axm.character-review006-runtime-normal-cache-budget/v0.1",
+  "candidate_id": "review006-dense-posed-normal-static-region-cache-001",
+  "animation_parent_head": "9519be55581c009fd800d175677d9b50ee6926e6",
+  "rigging_parent_head": "fa16c44b1a488d43842470fc9f30c5fb5e98cab6",
+  "geometry_head": "8ad006f91ebb9934d5df98702e4410c74a1e68ea",
+  "materials_normal_method": {
+    "owner_head": "e450684b398f8e5b0e23c4cbf717e3475dd4d5ee",
+    "owner_file": "tools/build_character_review006_shaded_shoulder_evidence.py",
+    "owner_blob": "843c0e1866172dd8b6c5ab0f23d69d1e469562f7",
+    "method": "AREA_WEIGHTED_INDEXED_VERTEX_SMOOTH_NORMAL"
+  },
+  "motion": {
+    "clip_id": "character-review006-bilateral-shoulder-articulation-review-loop-001",
+    "duration_s": 2.0,
+    "authored_hz": 40,
+    "dense_diagnostic_hz": 160,
+    "dense_sample_count": 321,
+    "both_shoulders": true
+  },
+  "candidate": {
+    "precompute_only_when_all_bound_dense_samples_prove_vertex_static": true,
+    "cache_face_cross_only_when_all_three_vertices_are_static": true,
+    "cache_final_vertex_normal_only_when_all_incident_faces_are_static": true,
+    "preserve_original_face_contribution_order_for_dynamic_outputs": true,
+    "source_positions_changed": false,
+    "faces_changed": false,
+    "normal_method_changed": false,
+    "material_changed": false,
+    "animation_changed": false
+  },
+  "acceptance": {
+    "exact_reference_normal_arrays_required_all_dense_samples": true,
+    "static_vertex_drift_negative_control_required": true,
+    "face_cross_operation_reduction_required": true,
+    "vertex_normalization_operation_reduction_required": true,
+    "proof_host_median_timing_win_required": true
+  },
+  "truth_boundary": {
+    "proof_host_python_preparation_timing_only": true,
+    "new_renderer_measurement": false,
+    "target_engine_playback_proven": false,
+    "target_device_cpu_gpu_fps_proven": false,
+    "final_shaded_motion_visual_acceptance": false,
+    "technical_art_transport_acceptance": false,
+    "runtime_controller_acceptance": false,
+    "gameplay_acceptance": false,
+    "canon": false,
+    "production_readiness": false
+  }
+}
